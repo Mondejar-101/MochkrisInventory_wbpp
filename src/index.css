@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -------------------------------------------------------
+   GLOBAL FADE + SLIDE ANIMATIONS
+   Used for Layout, Views, Modals, Cards, etc.
+-------------------------------------------------------- */
+@layer utilities {
+  .animate-fadeIn {
+    animation: fadeIn 0.35s ease-out both;
+  }
+  .animate-slideUp {
+    animation: slideUp 0.35s ease-out both;
+  }
+  .animate-slideLeft {
+    animation: slideLeft 0.35s ease-out both;
+  }
+  .animate-scaleIn {
+    animation: scaleIn 0.25s ease-out both;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideLeft {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+}
+
+/* -------------------------------------------------------
+   CUSTOM UI UTILITIES
+   Makes cards, buttons, boxes look more consistent
+-------------------------------------------------------- */
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-slate-200 p-6;
+  }
+
+  .card-hover {
+    @apply transition-all hover:shadow-md hover:-translate-y-0.5;
+  }
+
+  .btn-primary {
+    @apply bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold 
+           shadow-sm hover:bg-indigo-700 active:scale-95 transition-all;
+  }
+
+  .btn-soft {
+    @apply bg-slate-100 text-slate-700 px-4 py-2 rounded-lg 
+           hover:bg-slate-200 transition-all;
+  }
+
+  .input-field {
+    @apply border border-slate-300 rounded-lg px-3 py-2 text-sm 
+           focus:ring-2 focus:ring-indigo-400 focus:outline-none;
+  }
+
+  .badge {
+    @apply px-3 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .badge-success {
+    @apply badge bg-emerald-100 text-emerald-700;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-100 text-amber-700;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-100 text-red-700;
+  }
+}
+
+/* -------------------------------------------------------
+   CLEAN SCROLLBAR (Matches modern admin UI)
+-------------------------------------------------------- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Dark mode compatibility (if you enable dark mode later) */
+.dark::-webkit-scrollbar-thumb {
+  background: #475569;
+}
