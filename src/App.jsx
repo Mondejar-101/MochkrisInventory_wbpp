@@ -10,6 +10,9 @@ import InventoryView from "./components/InventoryCheck";
 import PurchasingView from "./components/PurchasingView";
 import DeliveryView from "./components/DeliveryReceiving";
 
+// NEW — direct purchase screen
+import CreateDirectPurchase from "./components/views/CreateDirectPurchase";
+
 export default function App() {
   const [currentRole, setCurrentRole] = useState("DEPARTMENT");
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -21,7 +24,7 @@ export default function App() {
     DEPARTMENT: ["dashboard", "requisition"],
     VP: ["dashboard", "approvals"],
     CUSTODIAN: ["dashboard", "inventory", "delivery"],
-    PURCHASING: ["dashboard", "purchasing"],
+    PURCHASING: ["dashboard", "purchasing", "direct_purchase"], // <-- Added
   };
 
   // Reset to dashboard when role changes
@@ -37,16 +40,17 @@ export default function App() {
     }
   }, [activeTab, currentRole]);
 
-  // Render the content based on tab
+  // Render active screen
   const renderContent = () => {
     switch (activeTab) {
-      case "dashboard":   return <DashboardStats />;
+      case "dashboard": return <DashboardStats />;
       case "requisition": return <RequisitionView />;
-      case "approvals":   return <ApprovalsView />;
-      case "inventory":   return <InventoryView />;
-      case "delivery":    return <DeliveryView />;
-case "purchasing": return <PurchasingView />;
-case "direct_purchase": return <CreateDirectPurchase />;      default:            return <DashboardStats />;
+      case "approvals": return <ApprovalsView />;
+      case "inventory": return <InventoryView />;
+      case "delivery": return <DeliveryView />;
+      case "purchasing": return <PurchasingView />;
+      case "direct_purchase": return <CreateDirectPurchase />; // <-- fixed
+      default: return <DashboardStats />;
     }
   };
 
