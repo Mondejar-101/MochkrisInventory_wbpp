@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
-import { useSystem } from '../../context/SystemContext';
-import { Plus } from 'lucide-react';
+import React, { useState } from "react";
+import { useSystem } from "../../context/SystemContext";
+import { Plus } from "lucide-react";
 
 export default function RequisitionView() {
-  const { createRequisition, requisitions } = useSystem();
-  const [item, setItem] = useState('');
+  const { inventory, createRequisition, requisitions } = useSystem();
+  const [selectedProductId, setSelectedProductId] = useState('');
   const [qty, setQty] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if(!item || !qty) return;
-    createRequisition(item, qty);
-    setItem('');
+    if (!selectedProductId || !qty) return;
+    const product = inventory.find(i => i.product_id === parseInt(selectedProductId));
+    if (!product) return;
+    createRequisition(product.name, qty, product.product_id);
+    setSelectedProductId('');
     setQty('');
   };
 
@@ -22,70 +24,51 @@ export default function RequisitionView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Form Card */}
+        {/* Form */}
         <div className="lg:col-span-1">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 sticky top-24">
-            <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
-              <Plus size={20} className="text-indigo-600" />
-              Create Request
-            </h3>
+            <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Plus size={20} className="text-indigo-600" /> Create Request</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Item Description</label>
-                <input 
-                  type="text" 
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                  placeholder="e.g. Mahogany Wood"
-                  value={item} onChange={e => setItem(e.target.value)} 
-                />
+                <label className="block text-sm text-slate-500 mb-1">Select Item</label>
+                <select value={selectedProductId} onChange={e => setSelectedProductId(e.target.value)} className="w-full border p-2 rounded">
+                  <option value=''>-- Choose Item --</option>
+                  {inventory.map(i => <option key={i.product_id} value={i.product_id}>{i.name} (Stock: {i.qty})</option>)}
+                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Quantity</label>
-                <input 
-                  type="number" 
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="0"
-                  value={qty} onChange={e => setQty(e.target.value)} 
-                />
+                <label className="block text-sm text-slate-500 mb-1">Quantity</label>
+                <input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} className="w-full border p-2 rounded" />
               </div>
-              <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition-all shadow-lg shadow-indigo-600/30">
-                Submit Requisition
-              </button>
+              <button className="w-full bg-indigo-600 text-white py-2 rounded">Submit Requisition</button>
             </form>
           </div>
         </div>
 
-        {/* List Card */}
+        {/* List */}
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50">
-              <h3 className="font-bold text-slate-700">My History</h3>
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="p-4 border-b bg-slate-50">
+              <h3 className="font-bold">My Requests</h3>
             </div>
-            <div className="divide-y divide-slate-100">
-              {requisitions.length === 0 && (
-                <div className="p-8 text-center text-slate-400">No requests found.</div>
-              )}
-              {requisitions.slice().reverse().map((r) => (
-                <div key={r.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+            <div>
+              {requisitions.length === 0 && <div className="p-8 text-center text-slate-400">No requests found.</div>}
+              {requisitions.slice().reverse().map(r => (
+                <div key={r.id} className="p-4 flex items-center justify-between border-b">
                   <div>
-                    <p className="font-bold text-slate-800">{r.item}</p>
-                    <p className="text-xs text-slate-500">Requested on {r.requestDate} • Qty: {r.qty}</p>
+                    <div className="font-semibold">{r.item}</div>
+                    <div className="text-xs text-slate-500">Qty: {r.qty} • {r.requestDate}</div>
                   </div>
                   <div className="text-right">
-                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                      r.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 
-                      r.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 
-                      'bg-indigo-50 text-indigo-700'
-                    }`}>
-                      {r.status.replace(/_/g, " ")}
-                    </span>
-                    <p className="text-[10px] text-slate-400 mt-1 max-w-[150px] truncate">{r.history[r.history.length-1]}</p>
+                    <div className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">{r.status.replace(/_/g, ' ')}</div>
+                    <div className="text-[10px] text-slate-400 mt-1">{r.history[r.history.length-1]}</div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

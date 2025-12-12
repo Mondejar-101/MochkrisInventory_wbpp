@@ -45,8 +45,8 @@ export default function App() {
       case "approvals":   return <ApprovalsView />;
       case "inventory":   return <InventoryView />;
       case "delivery":    return <DeliveryView />;
-      case "purchasing":  return <PurchasingView />;
-      default:            return <DashboardStats />;
+case "purchasing": return <PurchasingView />;
+case "direct_purchase": return <CreateDirectPurchase />;      default:            return <DashboardStats />;
     }
   };
 

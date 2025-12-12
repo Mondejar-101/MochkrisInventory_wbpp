@@ -17,6 +17,8 @@ pool.query('SELECT NOW()', (err, result) => {
     console.log('✅ Connected to PostgreSQL database');
   }
 });
+const inventoryRouter = require('./routes/inventory');
+app.use('/api/inventory', inventoryRouter);
 
 // ROOT ROUTE
 app.get('/', (req, res) => {

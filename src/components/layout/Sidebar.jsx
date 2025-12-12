@@ -43,11 +43,12 @@ export default function Sidebar({
           { id: "delivery", label: "Receiving & Delivery (RM/AR)", icon: Truck }
         ];
 
-      case "PURCHASING":
-        return [
-          ...base,
-          { id: "purchasing", label: "Procurement & PO Creation", icon: ShoppingCart }
-        ];
+    case "PURCHASING":
+  return [
+    ...base,
+    { id: "purchasing", label: "Procurement & PO Creation", icon: ShoppingCart },
+    { id: "direct_purchase", label: "Direct Purchase", icon: ShoppingCart }
+  ];
 
       default:
         return base;
