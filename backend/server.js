@@ -18,7 +18,6 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-
 // Test database connection
 pool.query('SELECT NOW()', (err, result) => {
   if (err) {
@@ -36,6 +35,17 @@ app.get('/', (req, res) => {
     timestamp: new Date(),
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+// Simple purchase orders route
+app.get('/api/purchase-orders', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM purchase_orders LIMIT 10');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching purchase orders:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // API Routes - Commenting out non-existent routes for now
