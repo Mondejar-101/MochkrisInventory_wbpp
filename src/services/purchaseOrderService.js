@@ -55,18 +55,24 @@ api.interceptors.response.use(
   }
 );
 
-const purchaseOrderService = {
-  // Get all purchase orders with optional filters
-  async getPurchaseOrders(filters = {}) {
-    try {
-      const response = await api.get(API_URL, { params: filters });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching purchase orders:', error);
-      throw error;
-    }
-  },
+// Get all purchase orders with optional filters
+const getPurchaseOrders = async (filters = {}) => {
+  try {
+    const response = await api.get(API_URL, { params: filters });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching purchase orders:', error);
+    throw error;
+  }
+};
 
+// Alias for getPurchaseOrders for backward compatibility
+const getAllPOs = getPurchaseOrders;
+
+const purchaseOrderService = {
+  getPurchaseOrders,
+  getAllPOs,
+  
   // Get a single purchase order by ID
   async getPurchaseOrderById(id) {
     try {

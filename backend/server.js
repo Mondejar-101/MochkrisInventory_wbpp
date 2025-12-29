@@ -18,6 +18,7 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+
 // Test database connection
 pool.query('SELECT NOW()', (err, result) => {
   if (err) {
@@ -37,14 +38,14 @@ app.get('/', (req, res) => {
   });
 });
 
-// API Routes
-const inventoryRouter = require('./routes/inventory');
+// API Routes - Commenting out non-existent routes for now
+// const inventoryRouter = require('./routes/inventory');
 const purchaseOrderRouter = require('./routes/purchaseOrderRoutes');
-const authRouter = require('./routes/auth');
+// const authRouter = require('./routes/auth');
 
-app.use('/api/inventory', inventoryRouter);
+// app.use('/api/inventory', inventoryRouter);
 app.use('/api/purchase-orders', purchaseOrderRouter);
-app.use('/api/auth', authRouter);
+// app.use('/api/auth', authRouter);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {

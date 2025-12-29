@@ -89,15 +89,19 @@ export default function PODetail({
     onAction("receive", { ...po, items: itemsWithReceivedQty });
   };
 
-  const handleAction = (action) => {
+  const handleAction = (action, data) => {
     if (action === "receive") {
       handleReceive();
     } else if (action === "approve") {
       setShowManagerModal(true);
     } else if (action === "rateSupplier") {
       handleRateSupplier();
+    } else if (action === "showApproveConfirm") {
+      setShowConfirm("approve");
+    } else if (action === "showRejectConfirm") {
+      setShowConfirm("reject");
     } else {
-      onAction(action, po);
+      onAction(action, data || po);
     }
   };
 
@@ -184,6 +188,62 @@ export default function PODetail({
           onSelect={handleManagerSelect}
           currentManagerId={po.assignedTo}
         />
+      )}
+      {showConfirm === "approve" && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full">
+            <h3 className="text-lg font-medium mb-4">Approve Purchase Order</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Are you sure you want to approve this purchase order? This will
+              notify the purchasing team to proceed with the order.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowConfirm(null)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  handleAction("approve");
+                  setShowConfirm(null);
+                }}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+              >
+                Approve
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showConfirm === "reject" && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full">
+            <h3 className="text-lg font-medium mb-4">Reject Purchase Order</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Are you sure you want to reject this purchase order? This action
+              cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowConfirm(null)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  handleAction("reject");
+                  setShowConfirm(null);
+                }}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-200">
@@ -717,32 +777,3 @@ export default function PODetail({
       )}
 
       {/* Rating modal is now handled by the parent component */}
-
-      {showConfirm === "reject" && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full">
-            <h3 className="text-lg font-medium mb-4">Reject Purchase Order</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Are you sure you want to reject this purchase order? This action
-              cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowConfirm(null)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  handleAction("reject");
-                  setShowConfirm(null);
-                }}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
