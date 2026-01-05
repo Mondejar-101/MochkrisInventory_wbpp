@@ -9,6 +9,7 @@ import DashboardStats from '../../components/views/DashboardStats';
 import MaterialOrderView from '../../components/views/MaterialOrderView';
 import ApprovalsView from '../../components/PendingApprovals';
 import ManagementView from '../../components/views/ManagementView';
+import LocalPurchaseOrderView from '../../components/views/PurchaseOrderView/LocalPurchaseOrderView';
 
 export default function DeptHeadDashboard() {
   const [currentRole] = useState('DEPARTMENT');
@@ -24,7 +25,7 @@ export default function DeptHeadDashboard() {
 
   // Allowed pages for department head
   const rolePermissions = {
-    DEPARTMENT: ["dashboard", "material_order", "management", "approvals"],
+    DEPARTMENT: ["dashboard", "material_order", "management", "approvals", "purchase_orders"],
   };
 
   // Auto-block unauthorized tab access
@@ -47,6 +48,8 @@ export default function DeptHeadDashboard() {
   // Render active screen
   const renderContent = () => {
     switch (activeTab) {
+      case "purchase_orders":
+        return <LocalPurchaseOrderView currentRole="DEPARTMENT" />;
       case "dashboard": 
         return <DashboardStats role="DEPARTMENT" />;
       case "material_order": 

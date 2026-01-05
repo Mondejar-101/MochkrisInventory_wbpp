@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 const SystemContext = createContext();
 
@@ -6,58 +6,44 @@ const SystemContext = createContext();
 const formatDate = (date) => new Date(date).toISOString();
 
 export const SystemProvider = ({ children }) => {
-  // Inventory state
-  const [inventory, setInventory] = useState([
-    { product_id: 1, name: 'Mahogany Wood Plank', qty: 5, unit: 'pcs', restockThreshold: 3, restockQty: 10 },
-    { product_id: 2, name: 'Wood Glue (Industrial)', qty: 2, unit: 'gals', restockThreshold: 5, restockQty: 20 },
-    { product_id: 3, name: 'Upholstery Fabric', qty: 0, unit: 'meters', restockThreshold: 2, restockQty: 15 },
-  ]);
+  // Load state from localStorage on initial render
+  const loadState = (key, defaultValue) => {
+    try {
+      const saved = localStorage.getItem(`mochkris_${key}`);
+      return saved ? JSON.parse(saved) : defaultValue;
+    } catch (error) {
+      console.error(`Error loading ${key} from localStorage:`, error);
+      return defaultValue;
+    }
+  };
 
-  // Suppliers state with initial ratings
-  const [suppliers, setSuppliers] = useState([
-    { 
-      id: 'supplier-1', 
-      name: 'WoodWorks Inc.',
-      contact: '(555) 123-4567',
-      email: 'contact@woodworks.com',
-      rating: 4.2,
-      ratings: [
-        { value: 4, comment: 'Good quality materials', date: '2023-01-15' },
-        { value: 5, comment: 'Excellent service', date: '2023-03-22' }
-      ]
-    },
-    { 
-      id: 'supplier-2', 
-      name: 'Global Furnishings',
-      contact: '(555) 234-5678',
-      email: 'sales@globalfurnishings.com',
-      rating: 3.8,
-      ratings: [
-        { value: 4, comment: 'Good prices', date: '2023-02-10' },
-        { value: 3, comment: 'Average quality', date: '2023-04-05' }
-      ]
-    },
-    { 
-      id: 'supplier-3', 
-      name: 'Local Supply Co.',
-      contact: '(555) 345-6789',
-      email: 'info@localsupply.co',
-      rating: 4.5,
-      ratings: [
-        { value: 5, comment: 'Fast delivery', date: '2023-01-30' },
-        { value: 4, comment: 'Good support', date: '2023-03-15' }
-      ]
-    },
-  ]);
+  // Save state to localStorage whenever it changes
+  const usePersistedState = (key, defaultValue) => {
+    const [state, setState] = useState(() => loadState(key, defaultValue));
+    
+    useEffect(() => {
+      try {
+        localStorage.setItem(`mochkris_${key}`, JSON.stringify(state));
+      } catch (error) {
+        console.error(`Error saving ${key} to localStorage:`, error);
+      }
+    }, [key, state]);
+    
+    return [state, setState];
+  };
 
-  const [requisitions, setRequisitions] = useState([]);
-  const [purchaseOrders, setPurchaseOrders] = useState([]);
-  const [purchaseRequests, setPurchaseRequests] = useState([]);
-  const [autoRestockedItems, setAutoRestockedItems] = useState([]);
-  const [managers, setManagers] = useState([
-    { id: 'manager-1', name: 'John Manager', email: 'john@mochkris.com', role: 'manager' },
-    { id: 'manager-2', name: 'Sarah Johnson', email: 'sarah@mochkris.com', role: 'manager' },
-  ]);
+  // Inventory state with persistence - starting empty
+  const [inventory, setInventory] = usePersistedState('inventory', []);
+
+  // Suppliers state with persistence - starting empty
+  const [suppliers, setSuppliers] = usePersistedState('suppliers', []);
+
+  // Other state with persistence
+  const [requisitions, setRequisitions] = usePersistedState('requisitions', []);
+  const [purchaseOrders, setPurchaseOrders] = usePersistedState('purchaseOrders', []);
+  const [purchaseRequests, setPurchaseRequests] = usePersistedState('purchaseRequests', []);
+  const [autoRestockedItems, setAutoRestockedItems] = usePersistedState('autoRestockedItems', []);
+  const [managers, setManagers] = usePersistedState('managers', []);
 
   // Create new PO
   const createPO = useCallback((poData) => {
@@ -466,6 +452,16 @@ export const SystemProvider = ({ children }) => {
     return newSupplier;
   };
 
+  // Delete inventory item
+  const deleteInventoryItem = (productId) => {
+    setInventory(prev => prev.filter(item => item.product_id !== productId));
+  };
+
+  // Delete supplier
+  const deleteSupplier = (supplierId) => {
+    setSuppliers(prev => prev.filter(supplier => supplier.id !== supplierId));
+  };
+
   // Add new inventory item with price
   const addNewInventoryItem = (item) => {
     const newItem = {
@@ -545,9 +541,11 @@ export const SystemProvider = ({ children }) => {
         updateSupplier,
         addNewSupplier,
         addNewInventoryItem,
+        deleteInventoryItem,
         purchaseStockDirect,
         completeDirectPurchase,
         vpSignPO,
+        deleteSupplier,
         createPO,
         approveAndAssignPO,
         markAsPurchased,

@@ -13,7 +13,7 @@ import PurchasingView from '../../components/PurchasingView';
 import DeliveryView from '../../components/DeliveryReceiving';
 import ManagementView from '../../components/views/ManagementView';
 import MaterialOrderView from '../../components/views/MaterialOrderView';
-import PurchaseOrderView from '../../components/views/PurchaseOrderView/PurchaseOrderView';
+import LocalPurchaseOrderView from '../../components/views/PurchaseOrderView/LocalPurchaseOrderView';
 import CreateDirectPurchase from '../../components/views/CreateDirectPurchase';
 
 export default function GeneralManagerDashboard() {
@@ -70,7 +70,7 @@ export default function GeneralManagerDashboard() {
       case "direct_purchase": 
         return <CreateDirectPurchase />;
       case "purchase_orders": 
-        return <PurchaseOrderView />;
+        return <LocalPurchaseOrderView currentRole="CUSTODIAN" />;
       case "management": 
         return <ManagementView />;
       default: 

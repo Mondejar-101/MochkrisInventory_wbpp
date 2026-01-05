@@ -8,6 +8,7 @@ export default function Login() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    rememberMe: false
   });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -73,7 +74,7 @@ export default function Login() {
     setIsLoading(true);
     
     try {
-      const result = await login(formData.email, formData.password);
+      const result = await login(formData.email, formData.password, formData.rememberMe);
       if (!result.success) {
         setLoginError(result.error || 'Invalid email or password');
       }
@@ -141,18 +142,28 @@ export default function Login() {
             
             {/* Password Field */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <Link 
-                  to="/forgot-password" 
-                  className="text-sm font-medium text-blue-600 hover:text-blue-500 focus:outline-none focus:underline"
-                >
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center">
+                  <input
+                    id="remember-me"
+                    name="rememberMe"
+                    type="checkbox"
+                    checked={formData.rememberMe}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      rememberMe: e.target.checked
+                    }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                    Remember me
+                  </label>
+                </div>
+                <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-500">
                   Forgot password?
                 </Link>
               </div>
-              <div className="relative rounded-md shadow-sm">
+              <div className="relative rounded-md shadow-sm mt-1">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <FiLock className="h-5 w-5 text-gray-400" />
                 </div>

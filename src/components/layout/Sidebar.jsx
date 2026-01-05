@@ -29,6 +29,7 @@ export default function Sidebar({
         return [
           ...base,
           { id: "material_order", label: "New Material Order (PO)", icon: ShoppingCart },
+          { id: "purchase_orders", label: "Purchase Orders", icon: ShoppingCart },
           { id: "approvals", label: "Pending RF Approvals", icon: CheckSquare },
           { id: "management", label: "Manage Items & Suppliers", icon: Settings }
         ];

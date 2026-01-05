@@ -40,7 +40,7 @@ export default function DashboardStats() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3">
         <StatCard title="Total Inventory Items" value={inventory.length} icon={Package} color="bg-blue-600" />
         <StatCard title="Low Stock Items" value={lowStock} icon={AlertTriangle} color="bg-orange-500" />
-        <StatCard title="Requisitions Pending VP" value={pendingRF} icon={ClipboardList} color="bg-amber-600" />
+        <StatCard title="Req. Pending" value={pendingRF} icon={ClipboardList} color="bg-amber-600" />
         <StatCard title="Forwarded to Purchasing" value={forPurchasing} icon={ShoppingCart} color="bg-indigo-600" />
         <StatCard title="Active Purchase Orders" value={ongoingPO} icon={Truck} color="bg-emerald-600" />
         <StatCard title="Completed Requests" value={completedTransactions} icon={CheckCircle} color="bg-green-600" />

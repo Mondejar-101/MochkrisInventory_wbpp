@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { SystemProvider } from '@/context/SystemContext';
-import Login from '@/pages/Login';
-import DeptHeadDashboard from '@/pages/depthead/Dashboard';
-import GeneralManagerDashboard from '@/pages/gm/Dashboard';
-import NotFound from '@/pages/NotFound';
+import { useAuth } from './context/AuthContext';
+import { SystemProvider } from './context/SystemContext';
+import Login from './pages/Login';
+import DeptHeadDashboard from './pages/depthead/Dashboard';
+import GeneralManagerDashboard from './pages/gm/Dashboard';
+import NotFound from './pages/NotFound';
 
 function App() {
   const { isAuthenticated, isDeptHead, isGeneralManager, loading } = useAuth();
