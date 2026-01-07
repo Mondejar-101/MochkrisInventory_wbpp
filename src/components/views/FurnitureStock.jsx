@@ -4,9 +4,10 @@ import { useSystem } from '../../context/SystemContext';
 import EditFurnitureStock from './EditFurnitureStock';
 
 export default function FurnitureStock() {
-  const { furnitureStock, updateFurnitureItem } = useSystem();
+  const { furnitureStock, updateFurnitureItem, addFurnitureDispense } = useSystem();
   const [selectedType, setSelectedType] = useState('');
   const [editingItem, setEditingItem] = useState(null);
+  const [dispenseModal, setDispenseModal] = useState({ isOpen: false, item: null, quantity: '', soldTo: '' });
 
   // If furnitureStock is undefined or empty, show a message
   if (!furnitureStock || furnitureStock.length === 0) {
@@ -61,9 +62,64 @@ export default function FurnitureStock() {
 
   // Handle dispense action
   const handleDispense = (item) => {
-    console.log('Dispense item:', item);
-    // TODO: Implement dispense functionality - could update quantity or create dispense record
-    alert(`Dispense functionality for "${item.name}" will be implemented`);
+    setDispenseModal({ isOpen: true, item, quantity: '', soldTo: '' });
+  };
+
+  // Handle dispense confirmation
+  const handleConfirmDispense = () => {
+    const { item, quantity, soldTo } = dispenseModal;
+    const dispenseQty = parseInt(quantity);
+    
+    console.log('Furniture dispense - item:', item);
+    console.log('Furniture dispense - current quantity:', item.quantity);
+    console.log('Furniture dispense - dispenseQty:', dispenseQty);
+    
+    if (!dispenseQty || dispenseQty <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+    
+    if (!soldTo || soldTo.trim() === '') {
+      alert('Please enter who the furniture was sold to');
+      return;
+    }
+    
+    if (dispenseQty > (item.quantity || 0)) {
+      alert('Cannot dispense more than available stock');
+      return;
+    }
+    
+    // Update furniture item quantity
+    const newQuantity = (item.quantity || 0) - dispenseQty;
+    
+    console.log('Furniture dispense - new quantity:', newQuantity);
+    
+    updateFurnitureItem(item.id, { quantity: newQuantity });
+    
+    // Add dispense record to history
+    const unitPrice = item.price || 0;
+    const totalPrice = dispenseQty * unitPrice;
+    
+    addFurnitureDispense({
+      itemName: item.name,
+      itemId: item.id,
+      quantity: dispenseQty,
+      unitPrice: unitPrice,
+      totalPrice: totalPrice,
+      soldTo: soldTo,
+      remainingStock: newQuantity,
+      dispensedBy: 'Current User' // You can get this from auth context if needed
+    });
+    
+    // Close modal and reset
+    setDispenseModal({ isOpen: false, item: null, quantity: '', soldTo: '' });
+    
+    alert(`Successfully dispensed ${dispenseQty} ${item.name} to ${soldTo}`);
+  };
+
+  // Handle cancel dispense
+  const handleCancelDispense = () => {
+    setDispenseModal({ isOpen: false, item: null, quantity: '', soldTo: '' });
   };
 
   // Handle close edit modal
@@ -177,6 +233,68 @@ export default function FurnitureStock() {
             item={editingItem} 
             onClose={handleCloseEdit} 
           />
+        )}
+
+        {/* Dispense Modal */}
+        {dispenseModal.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Dispense Furniture</h3>
+              
+              <div className="mb-4">
+                <p className="text-sm text-slate-600 mb-2">
+                  <strong>Item:</strong> {dispenseModal.item?.name}
+                </p>
+                <p className="text-sm text-slate-600 mb-2">
+                  <strong>Available Stock:</strong> {dispenseModal.item?.quantity || 0}
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Quantity to Dispense
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={dispenseModal.item?.quantity || 0}
+                  value={dispenseModal.quantity}
+                  onChange={(e) => setDispenseModal(prev => ({ ...prev, quantity: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Enter quantity"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Who was it sold to? *
+                </label>
+                <input
+                  type="text"
+                  value={dispenseModal.soldTo}
+                  onChange={(e) => setDispenseModal(prev => ({ ...prev, soldTo: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Enter customer name"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleConfirmDispense}
+                  className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                >
+                  Confirm Dispense
+                </button>
+                <button
+                  onClick={handleCancelDispense}
+                  className="flex-1 bg-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-400 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

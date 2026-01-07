@@ -66,6 +66,12 @@ export const SystemProvider = ({ children }) => {
   // Furniture stock state with persistence
   const [furnitureStock, setFurnitureStock] = usePersistedState("furnitureStock", []);
 
+  // Material dispense history state with persistence
+  const [materialDispenseHistory, setMaterialDispenseHistory] = usePersistedState("materialDispenseHistory", []);
+
+  // Furniture dispense history state with persistence
+  const [furnitureDispenseHistory, setFurnitureDispenseHistory] = usePersistedState("furnitureDispenseHistory", []);
+
   // Add furniture items to stock
   const addFurnitureItems = useCallback((items) => {
     const newItems = items.map(item => ({
@@ -93,6 +99,32 @@ export const SystemProvider = ({ children }) => {
   // Delete furniture item
   const deleteFurnitureItem = useCallback((itemId) => {
     setFurnitureStock(prev => prev.filter(item => item.id !== itemId));
+  }, []);
+
+  // Add material dispense record
+  const addMaterialDispense = useCallback((dispenseData) => {
+    const newDispense = {
+      ...dispenseData,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      dispensedAt: formatDate(new Date()),
+      type: 'material'
+    };
+    
+    setMaterialDispenseHistory(prev => [newDispense, ...prev]);
+    return newDispense;
+  }, []);
+
+  // Add furniture dispense record
+  const addFurnitureDispense = useCallback((dispenseData) => {
+    const newDispense = {
+      ...dispenseData,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      dispensedAt: formatDate(new Date()),
+      type: 'furniture'
+    };
+    
+    setFurnitureDispenseHistory(prev => [newDispense, ...prev]);
+    return newDispense;
   }, []);
 
   // Create new PO
@@ -1018,6 +1050,10 @@ export const SystemProvider = ({ children }) => {
         addFurnitureItems,
         updateFurnitureItem,
         deleteFurnitureItem,
+        materialDispenseHistory,
+        furnitureDispenseHistory,
+        addMaterialDispense,
+        addFurnitureDispense,
       }}
     >
       {children}

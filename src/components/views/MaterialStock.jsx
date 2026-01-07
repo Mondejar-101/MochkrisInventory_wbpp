@@ -3,9 +3,10 @@ import { Package, Search, PackageOpen, AlertTriangle } from 'lucide-react';
 import { useSystem } from '../../context/SystemContext';
 
 export default function MaterialStock() {
-  const { inventory } = useSystem();
+  const { inventory, updateInventoryItem, addMaterialDispense } = useSystem();
   const [searchTerm, setSearchTerm] = useState('');
   const [stockStatusFilter, setStockStatusFilter] = useState('');
+  const [dispenseModal, setDispenseModal] = useState({ isOpen: false, item: null, quantity: '', reason: '' });
 
   console.log('MaterialStock component - inventory:', inventory);
 
@@ -62,9 +63,52 @@ export default function MaterialStock() {
 
   // Handle dispense action
   const handleDispense = (item) => {
-    console.log('Dispense item:', item);
-    // TODO: Implement dispense functionality - could update quantity or create dispense record
-    alert(`Dispense functionality for "${item.name}" will be implemented`);
+    setDispenseModal({ isOpen: true, item, quantity: '', reason: '' });
+  };
+
+  // Handle dispense confirmation
+  const handleConfirmDispense = () => {
+    const { item, quantity, reason } = dispenseModal;
+    const dispenseQty = parseInt(quantity);
+    
+    if (!dispenseQty || dispenseQty <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+    
+    if (dispenseQty > (item.qty || 0)) {
+      alert('Cannot dispense more than available stock');
+      return;
+    }
+    
+    // Update inventory item quantity
+    const updatedItem = {
+      ...item,
+      qty: (item.qty || 0) - dispenseQty
+    };
+    
+    updateInventoryItem(updatedItem);
+    
+    // Add dispense record to history
+    addMaterialDispense({
+      itemName: item.name,
+      itemId: item.product_id,
+      quantity: dispenseQty,
+      unit: item.unit || 'pcs',
+      reason: reason || 'No reason provided',
+      remainingStock: updatedItem.qty,
+      dispensedBy: 'Current User' // You can get this from auth context if needed
+    });
+    
+    // Close modal and reset
+    setDispenseModal({ isOpen: false, item: null, quantity: '', reason: '' });
+    
+    alert(`Successfully dispensed ${dispenseQty} ${item.unit || 'pcs'} of ${item.name}`);
+  };
+
+  // Handle cancel dispense
+  const handleCancelDispense = () => {
+    setDispenseModal({ isOpen: false, item: null, quantity: '', reason: '' });
   };
 
   // Get status badge based on stock level
@@ -188,6 +232,67 @@ export default function MaterialStock() {
           </div>
         )}
       </div>
+
+      {/* Dispense Modal */}
+      {dispenseModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
+            <h3 className="text-lg font-semibold text-slate-800 mb-4">Dispense Item</h3>
+            
+            <div className="mb-4">
+              <p className="text-sm text-slate-600 mb-2">
+                <strong>Item:</strong> {dispenseModal.item?.name}
+              </p>
+              <p className="text-sm text-slate-600 mb-2">
+                <strong>Available Stock:</strong> {dispenseModal.item?.qty || 0} {dispenseModal.item?.unit || 'pcs'}
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Quantity to Dispense
+              </label>
+              <input
+                type="number"
+                min="1"
+                max={dispenseModal.item?.qty || 0}
+                value={dispenseModal.quantity}
+                onChange={(e) => setDispenseModal(prev => ({ ...prev, quantity: e.target.value }))}
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Enter quantity"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Reason (Optional)
+              </label>
+              <textarea
+                value={dispenseModal.reason}
+                onChange={(e) => setDispenseModal(prev => ({ ...prev, reason: e.target.value }))}
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Enter reason for dispensing (optional)"
+                rows="3"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleConfirmDispense}
+                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+              >
+                Confirm Dispense
+              </button>
+              <button
+                onClick={handleCancelDispense}
+                className="flex-1 bg-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-400 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

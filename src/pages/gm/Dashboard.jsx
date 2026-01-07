@@ -15,6 +15,8 @@ import MaterialOrderView from '../../components/views/MaterialOrderView';
 import FurnitureStock from '../../components/views/FurnitureStock';
 import AddFurnitureStock from '../../components/views/AddFurnitureStock';
 import MaterialStock from '../../components/views/MaterialStock';
+import MaterialDispenseHistory from '../../components/views/MaterialDispenseHistory';
+import FurnitureDispenseHistory from '../../components/views/FurnitureDispenseHistory';
 
 export default function GeneralManagerDashboard() {
   const [currentRole] = useState('CUSTODIAN');
@@ -47,7 +49,7 @@ export default function GeneralManagerDashboard() {
 
   // Allowed pages for general manager (using CUSTODIAN role for full access)
   const rolePermissions = {
-    CUSTODIAN: ["dashboard", "delivery", "purchasing", "approvals", "requisition", "management", "furniture_stock", "add_furniture", "material_stock"],
+    CUSTODIAN: ["dashboard", "delivery", "purchasing", "approvals", "requisition", "management", "furniture_stock", "add_furniture", "material_stock", "material_dispense", "furniture_dispense"],
   };
 
   // Auto-block unauthorized tab access
@@ -84,12 +86,16 @@ export default function GeneralManagerDashboard() {
         return <PurchasingView />;
       case "material_stock": 
         return <MaterialStock />;
-      case "management": 
-        return <ManagementView />;
+      case "material_dispense": 
+        return <MaterialDispenseHistory />;
       case "furniture_stock": 
         return <FurnitureStock />;
+      case "furniture_dispense": 
+        return <FurnitureDispenseHistory />;
       case "add_furniture": 
         return <AddFurnitureStock />;
+      case "management": 
+        return <ManagementView />;
       default: 
         return <DashboardStats role="CUSTODIAN" onCreatePO={handleCreatePO} onCreateRF={handleCreateRF} />;
     }
@@ -103,9 +109,11 @@ export default function GeneralManagerDashboard() {
       'delivery': 'Receiving & Delivery (RM/AR)',
       'purchasing': 'Procurement & PO Creation',
       'material_stock': 'Material Stock',
-      'management': 'Manage Items & Suppliers',
+      'material_dispense': 'Material Dispense History',
       'furniture_stock': 'Furniture Stock',
-      'add_furniture': 'Add Furniture Stock'
+      'furniture_dispense': 'Furniture Dispense History',
+      'add_furniture': 'Add Furniture Stock',
+      'management': 'Manage Items & Suppliers'
     };
     return titles[activeTab] || 'Dashboard';
   };

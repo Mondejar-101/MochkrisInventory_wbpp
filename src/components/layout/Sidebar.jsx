@@ -11,7 +11,8 @@ import {
   ChevronDown,
   Settings,
   Home,
-  PlusCircle
+  PlusCircle,
+  Clock
 } from 'lucide-react';
 
 // Sidebar component for navigation
@@ -67,6 +68,16 @@ export default function Sidebar({
             children: [
               { id: "material_stock", label: "Material Stocks", icon: Package },
               { id: "furniture_stock", label: "Furniture Stocks", icon: Home }
+            ]
+          },
+          { 
+            id: "dispense_history", 
+            label: "Dispense History", 
+            icon: Clock,
+            isDropdown: true,
+            children: [
+              { id: "material_dispense", label: "Material", icon: Package },
+              { id: "furniture_dispense", label: "Furniture", icon: Home }
             ]
           },
           { id: "purchasing", label: "Procurement & PO Creation", icon: ShoppingCart },
