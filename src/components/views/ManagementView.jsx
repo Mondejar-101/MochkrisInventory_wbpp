@@ -109,7 +109,7 @@ export default function ManagementView() {
 
    return (
     <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-slate-800">Inventory Management</h2>
+      <h2 className="text-2xl font-bold text-slate-800">Management</h2>
       
       {/* Items Management */}
       <div className="bg-white rounded-xl shadow-sm border">

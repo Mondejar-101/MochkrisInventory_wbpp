@@ -63,6 +63,38 @@ export const SystemProvider = ({ children }) => {
   // State for pre-filling forms from dashboard
   const [prefillData, setPrefillData] = useState(null);
 
+  // Furniture stock state with persistence
+  const [furnitureStock, setFurnitureStock] = usePersistedState("furnitureStock", []);
+
+  // Add furniture items to stock
+  const addFurnitureItems = useCallback((items) => {
+    const newItems = items.map(item => ({
+      ...item,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      createdAt: formatDate(new Date()),
+      status: item.quantity === 0 ? 'Out of Stock' : item.quantity < item.restockThreshold ? 'Low Stock' : 'In Stock'
+    }));
+    
+    setFurnitureStock(prev => [...prev, ...newItems]);
+    return newItems;
+  }, []);
+
+  // Update furniture item
+  const updateFurnitureItem = useCallback((itemId, updatedData) => {
+    setFurnitureStock(prev => 
+      prev.map(item => 
+        item.id === itemId 
+          ? { ...item, ...updatedData, updatedAt: formatDate(new Date()) }
+          : item
+      )
+    );
+  }, []);
+
+  // Delete furniture item
+  const deleteFurnitureItem = useCallback((itemId) => {
+    setFurnitureStock(prev => prev.filter(item => item.id !== itemId));
+  }, []);
+
   // Create new PO
   const createPO = useCallback((poData) => {
     const newPO = {
@@ -302,7 +334,7 @@ export const SystemProvider = ({ children }) => {
       status: "PENDING APPROVAL",
       auto: true,
       history: ["Auto-generated due to low stock"],
-      requestDate: new Date().toLocaleDateString(),
+      requestDate: new Date().toISOString(),
     };
     setRequisitions((prev) => [...prev, newReq]);
     setAutoRestockedItems((prev) => [
@@ -328,6 +360,8 @@ export const SystemProvider = ({ children }) => {
     price = 0,
     additionalData = {}
   ) => {
+    console.log('createRequisition called with:', { itemName, qty, product_id, supplier, price });
+    
     // Check if we have a valid product_id (not 0 or undefined)
     let itemId = product_id;
     let itemExists =
@@ -335,8 +369,11 @@ export const SystemProvider = ({ children }) => {
       product_id > 0 &&
       inventory.some((item) => item.product_id === product_id);
 
-    // If item doesn't exist in inventory, add it
-    if (!itemExists) {
+    // Check if this is a temporary item (starts with 'temp-')
+    const isTemporary = product_id && product_id.toString().startsWith('temp-');
+    
+    // If item doesn't exist in inventory and is not temporary, add it
+    if (!itemExists && !isTemporary) {
       const newItem = {
         name: itemName,
         qty: 0, // Start with 0 since we're requesting it
@@ -353,19 +390,26 @@ export const SystemProvider = ({ children }) => {
       id: Date.now(),
       item: itemName,
       qty: parseInt(qty),
-      product_id: itemId, // Use existing or new item ID
+      product_id: itemId, // Use existing or new item ID (or temporary ID)
       price: parseFloat(price) || 0,
       status: "PENDING APPROVAL",
       history: [
-        "Created by Department" +
+        "Created by General Manager" +
           (supplier ? ` (Preferred Supplier: ${supplier.name})` : ""),
       ],
-      requestDate: new Date().toLocaleDateString(),
+      requestDate: new Date().toISOString(),
       ...(supplier && { supplier }),
       ...additionalData, // Allow additional data like items array, notes, etc.
+      // Mark if this contains temporary items
+      ...(isTemporary && { hasTemporaryItems: true })
     };
 
-    setRequisitions((prev) => [...prev, newReq]);
+    setRequisitions((prev) => {
+      const newRequisitions = [...prev, newReq];
+      console.log('setRequisitions called - newReq:', newReq);
+      console.log('setRequisitions called - newRequisitions:', newRequisitions);
+      return newRequisitions;
+    });
     return newReq;
   };
 
@@ -378,10 +422,10 @@ export const SystemProvider = ({ children }) => {
         r.id === id
           ? {
               ...r,
-              status: isApproved ? "APPROVED_BY_VP" : "REJECTED",
+              status: isApproved ? "APPROVED" : "REJECTED",
               history: [
                 ...r.history,
-                isApproved ? "Signed by VP" : "Returned to Dept (Not Signed)",
+                isApproved ? "Approved" : "Returned to Dept (Not Signed)",
               ],
             }
           : r
@@ -396,11 +440,54 @@ export const SystemProvider = ({ children }) => {
   const custodianCheckInventory = (reqId) => {
     const req = requisitions.find((r) => r.id === reqId);
     if (!req) return;
-    const item = inventory.find((i) => i.product_id === req.product_id);
-    if (!item) return;
+    
+    // Check if this is a temporary item
+    const isTemporary = req.product_id && req.product_id.toString().startsWith('temp-');
+    
+    let item;
+    if (isTemporary) {
+      // For temporary items, find the item in the requisition items array
+      item = req.items && req.items.find(i => i.product_id === req.product_id);
+      if (!item) {
+        // Fallback to creating item from requisition data
+        item = {
+          product_id: req.product_id,
+          name: req.item,
+          qty: 0,
+          unit: 'pcs',
+          restockThreshold: 3,
+          restockQty: 10,
+          isTemporary: true
+        };
+      }
+    } else {
+      // For existing items, find in inventory
+      item = inventory.find((i) => i.product_id === req.product_id);
+      if (!item) return;
+    }
 
-    if (item.qty >= req.qty) {
-      // Deduct stock
+    // For temporary items, we can't check stock since they don't exist in inventory yet
+    // So we always forward to purchasing for temporary items
+    if (isTemporary || item.qty < req.qty) {
+      // forward to purchasing
+      setRequisitions((prev) =>
+        prev.map((r) =>
+          r.id === reqId
+            ? {
+                ...r,
+                status: "FORWARDED_TO_PURCHASING",
+                history: [
+                  ...r.history,
+                  isTemporary 
+                    ? "New item. Forwarded to Purchasing for procurement"
+                    : "Insufficient stock. Forwarded to Purchasing",
+                ],
+              }
+            : r
+        )
+      );
+    } else {
+      // Deduct stock for existing items
       setInventory((prev) =>
         prev.map((i) =>
           i.product_id === item.product_id ? { ...i, qty: i.qty - req.qty } : i
@@ -426,22 +513,6 @@ export const SystemProvider = ({ children }) => {
         // use the current item snapshot (before setInventory takes effect)
         autoCreateRequisition(item);
       }
-    } else {
-      // forward to purchasing
-      setRequisitions((prev) =>
-        prev.map((r) =>
-          r.id === reqId
-            ? {
-                ...r,
-                status: "FORWARDED_TO_PURCHASING",
-                history: [
-                  ...r.history,
-                  "Insufficient stock. Forwarded to Purchasing",
-                ],
-              }
-            : r
-        )
-      );
     }
   };
 
@@ -449,8 +520,29 @@ export const SystemProvider = ({ children }) => {
   // Create PO from RF (normal flow)
   // -------------------------
   const createPurchaseOrder = (reqId, supplierName) => {
+    console.log('createPurchaseOrder called with:', { reqId, supplierName });
     const req = requisitions.find((r) => r.id === reqId);
-    if (!req) return;
+    if (!req) {
+      console.error('Requisition not found:', reqId);
+      return null;
+    }
+
+    // Check if this is a temporary item
+    const isTemporary = req.product_id && req.product_id.toString().startsWith('temp-');
+    
+    // Find the item details from the requisition items array if available
+    let itemDetails = {};
+    if (req.items && req.items.length > 0) {
+      const reqItem = req.items.find(i => i.product_id === req.product_id);
+      if (reqItem) {
+        itemDetails = {
+          unit: reqItem.unit,
+          restockThreshold: reqItem.restockThreshold,
+          restockQty: reqItem.restockQty,
+          isTemporary: reqItem.isTemporary
+        };
+      }
+    }
 
     const newPO = {
       id: Date.now().toString(),
@@ -462,9 +554,21 @@ export const SystemProvider = ({ children }) => {
       status: "PENDING_PO_APPROVAL",
       history: ["PO Created after Canvassing"],
       type: "RF_LINKED",
+      // Preserve temporary item information
+      ...(isTemporary && {
+        isTemporary: true,
+        ...itemDetails
+      })
     };
 
-    setPurchaseOrders((prev) => [...prev, newPO]);
+    console.log('Creating new PO:', newPO);
+
+    setPurchaseOrders((prev) => {
+      const updated = [...prev, newPO];
+      console.log('Updated purchaseOrders array:', updated);
+      return updated;
+    });
+
     setRequisitions((prev) =>
       prev.map((r) =>
         r.id === reqId
@@ -476,6 +580,8 @@ export const SystemProvider = ({ children }) => {
           : r
       )
     );
+
+    return newPO; // Return the created PO
   };
 
   const vpSignPO = (poId, isApproved) => {
@@ -488,7 +594,7 @@ export const SystemProvider = ({ children }) => {
               history: [
                 ...po.history,
                 isApproved
-                  ? "Signed by VP. Sent to Manager."
+                  ? "Approved. Sent to Manager."
                   : "Unsigned. Returned.",
               ],
             }
@@ -499,9 +605,15 @@ export const SystemProvider = ({ children }) => {
 
   // Mark PO as ready for delivery (after PDF generation)
   const markPOReadyForDelivery = (poId) => {
-    setPurchaseOrders((prev) =>
-      prev.map((po) =>
-        po.id === poId || po.id?.toString() === poId?.toString()
+    console.log('markPOReadyForDelivery called with poId:', poId);
+    console.log('Current purchaseOrders before update:', purchaseOrders);
+    
+    setPurchaseOrders((prev) => {
+      const updated = prev.map((po) => {
+        const isMatch = po.id === poId || po.id?.toString() === poId?.toString();
+        console.log(`Checking PO ${po.id} (type: ${typeof po.id}) against ${poId} (type: ${typeof poId}):`, isMatch);
+        
+        return isMatch
           ? {
               ...po,
               status: "SENT TO MANAGER",
@@ -510,9 +622,12 @@ export const SystemProvider = ({ children }) => {
                 "PO Generated. Ready for Delivery.",
               ],
             }
-          : po
-      )
-    );
+          : po;
+      });
+      
+      console.log('Updated purchaseOrders:', updated);
+      return updated;
+    });
   };
 
   // -------------------------
@@ -544,7 +659,10 @@ export const SystemProvider = ({ children }) => {
         createdAt: orderOrItems.createdAt || new Date().toISOString(),
         status: orderOrItems.status || "SENT TO MANAGER",
         type: orderOrItems.type || "DIRECT_PURCHASE",
-        history: [...(orderOrItems.history || []), "Direct Purchase Created"],
+        history: [...(orderOrItems.history || []), 
+                  ...(orderOrItems.history && orderOrItems.history.includes("Direct Purchase Created") 
+                    ? [] 
+                    : ["Direct Purchase Created"])],
       };
     }
 
@@ -595,9 +713,17 @@ export const SystemProvider = ({ children }) => {
   // -------------------------
   // Receive delivery for PO (updates inventory)
   // -------------------------
-  const receiveDelivery = (poId, isDamaged = false) => {
+  const receiveDelivery = (poId, isDamaged = false, processingData = null) => {
+    console.log('receiveDelivery called with:', { poId, isDamaged, processingData });
     const po = purchaseOrders.find((p) => p.id === poId);
-    if (!po) return;
+    if (!po) {
+      console.error('PO not found:', poId);
+      return;
+    }
+    console.log('Processing PO:', po);
+
+    // Get current timestamp for processing
+    const currentTimestamp = new Date().toISOString();
 
     if (isDamaged) {
       setPurchaseOrders((prev) =>
@@ -607,6 +733,8 @@ export const SystemProvider = ({ children }) => {
                 ...p,
                 status: "RETURNED_TO_SUPPLIER",
                 history: [...p.history, "Items Damaged. Returned to Supplier."],
+                processedAt: processingData?.processedAt || currentTimestamp,
+                updatedAt: currentTimestamp
               }
             : p
         )
@@ -622,6 +750,9 @@ export const SystemProvider = ({ children }) => {
               ...p,
               status: "COMPLETED",
               history: [...p.history, "Items Good. Delivered."],
+              processedAt: processingData?.processedAt || currentTimestamp,
+              acceptedAt: processingData?.acceptedAt || currentTimestamp,
+              updatedAt: currentTimestamp
             }
           : p
       )
@@ -630,6 +761,7 @@ export const SystemProvider = ({ children }) => {
     // Update inventory for all PO types
     // Handle both items array format and single item format
     setInventory((prev) => {
+      console.log('Current inventory before update:', prev);
       const updated = [...prev];
 
       if (po.items && Array.isArray(po.items) && po.items.length > 0) {
@@ -639,30 +771,73 @@ export const SystemProvider = ({ children }) => {
           const quantity = item.quantity || item.qty || 0;
 
           if (productId) {
-            const itemIndex = updated.findIndex(
-              (i) => i.product_id?.toString() === productId.toString()
-            );
-            if (itemIndex >= 0) {
-              updated[itemIndex] = {
-                ...updated[itemIndex],
-                qty: (updated[itemIndex].qty || 0) + quantity,
+            // Check if this is a temporary item (starts with 'temp-')
+            if (productId.toString().startsWith('temp-')) {
+              // This is a new item that needs to be added to inventory
+              const newItem = {
+                product_id: Math.max(0, ...updated.map((i) => i.product_id)) + 1,
+                name: item.name || `Item ${productId}`,
+                qty: quantity,
+                unit: item.unit || 'pcs',
+                price: item.unit_price || item.price || item.unitPrice || 0,
+                restockThreshold: item.restockThreshold || 3,
+                restockQty: item.restockQty || 10,
               };
+              updated.push(newItem);
+              console.log(`Added new item to inventory: ${newItem.name} with quantity ${quantity}`);
+            } else {
+              // Existing item - update quantity
+              const itemIndex = updated.findIndex(
+                (i) => i.product_id?.toString() === productId.toString()
+              );
+              if (itemIndex >= 0) {
+                const oldQty = updated[itemIndex].qty || 0;
+                updated[itemIndex] = {
+                  ...updated[itemIndex],
+                  qty: oldQty + quantity,
+                };
+                console.log(`Updated item ${productId}: ${oldQty} + ${quantity} = ${updated[itemIndex].qty}`);
+              } else {
+                console.log('Item not found in inventory:', productId);
+              }
             }
           }
         });
       } else if (po.product_id && po.qty) {
         // Single item format (RF_LINKED)
-        const itemIndex = updated.findIndex(
-          (i) => i.product_id?.toString() === po.product_id?.toString()
-        );
-        if (itemIndex >= 0) {
-          updated[itemIndex] = {
-            ...updated[itemIndex],
-            qty: (updated[itemIndex].qty || 0) + (po.qty || 0),
+        // Check if this is a temporary item
+        if (po.product_id.toString().startsWith('temp-')) {
+          // This is a new item that needs to be added to inventory
+          const newItem = {
+            product_id: Math.max(0, ...updated.map((i) => i.product_id)) + 1,
+            name: po.item || po.name || `Item ${po.product_id}`,
+            qty: po.qty || 0,
+            unit: po.unit || 'pcs',
+            price: po.price || 0,
+            restockThreshold: 3,
+            restockQty: 10,
           };
+          updated.push(newItem);
+          console.log(`Added new single item to inventory: ${newItem.name} with quantity ${po.qty}`);
+        } else {
+          // Existing item - update quantity
+          const itemIndex = updated.findIndex(
+            (i) => i.product_id?.toString() === po.product_id?.toString()
+          );
+          if (itemIndex >= 0) {
+            const oldQty = updated[itemIndex].qty || 0;
+            updated[itemIndex] = {
+              ...updated[itemIndex],
+              qty: oldQty + (po.qty || 0),
+            };
+            console.log(`Updated single item ${po.product_id}: ${oldQty} + ${po.qty} = ${updated[itemIndex].qty}`);
+          } else {
+            console.log('Single item not found in inventory:', po.product_id);
+          }
         }
       }
 
+      console.log('Updated inventory:', updated);
       return updated;
     });
 
@@ -839,6 +1014,10 @@ export const SystemProvider = ({ children }) => {
         rateSupplier,
         prefillData,
         setPrefillData,
+        furnitureStock,
+        addFurnitureItems,
+        updateFurnitureItem,
+        deleteFurnitureItem,
       }}
     >
       {children}

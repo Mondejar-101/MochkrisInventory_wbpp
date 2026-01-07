@@ -28,16 +28,21 @@ export default function PurchasingView() {
     (po) => po.status === "SENT_TO_MANAGER" || po.status === "SENT_TO_MANAGER"
   );
 
-  // Get approved RFs (status: APPROVED_BY_VP)
+  // Get approved RFs (status: APPROVED)
   const approvedRFs = requisitions.filter(
-    (r) => r.status === "APPROVED_BY_VP" || r.status === "APPROVED"
+    (r) => r.status === "APPROVED"
   );
 
   // Combine both for display
   const itemsToProcess = [
     ...pendingPOs.map((po) => ({ type: "PO", data: po })),
     ...approvedRFs.map((rf) => ({ type: "RF", data: rf })),
-  ];
+  ].sort((a, b) => {
+    // Sort by creation date (newest first)
+    const dateA = new Date(a.data.createdAt || a.data.requestDate || 0);
+    const dateB = new Date(b.data.createdAt || b.data.requestDate || 0);
+    return dateB - dateA;
+  });
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [showPDFModal, setShowPDFModal] = useState(false);
@@ -80,10 +85,14 @@ export default function PurchasingView() {
   };
 
   const handleGeneratePO = async (item) => {
+    console.log('=== handleGeneratePO called ===');
+    console.log('item data:', item);
+    console.log('item.type:', item.type);
+    
     try {
       let poData;
       if (item.type === "PO") {
-        // Prepare PO data with proper structure
+        // For existing POs - just generate PDF and mark as ready for delivery
         poData = {
           ...item.data,
           poNumber: item.data.id || Date.now().toString(),
@@ -98,8 +107,17 @@ export default function PurchasingView() {
           supplier: item.data.supplier?.name || item.data.supplier || "N/A",
           createdAt: item.data.createdAt || new Date().toISOString(),
         };
+
+        // Generate and download PDF
+        await generatePurchaseOrderPDF(poData, true);
+
+        // Mark the existing PO as ready for delivery
+        if (markPOReadyForDelivery) {
+          console.log('Marking existing PO as ready for delivery:', item.data.id);
+          markPOReadyForDelivery(item.data.id);
+        }
       } else {
-        // Convert RF to PO format and generate
+        // For RFs - create new PO
         poData = {
           ...item.data,
           poNumber: item.data.id?.toString() || Date.now().toString(),
@@ -114,23 +132,35 @@ export default function PurchasingView() {
           supplier: item.data.supplier?.name || item.data.supplier || "N/A",
           createdAt: item.data.requestDate || new Date().toISOString(),
         };
-      }
 
-      // Generate and download PDF
-      await generatePurchaseOrderPDF(poData, true);
+        // Generate and download PDF first
+        await generatePurchaseOrderPDF(poData, true);
 
-      // Update PO status to "SENT TO MANAGER" so it appears in Receiving & Delivery
-      const poId = item.data.id || item.data.id?.toString();
-      if (poId && markPOReadyForDelivery) {
-        markPOReadyForDelivery(poId);
+        // Create PO in purchaseOrders array
+        if (createPurchaseOrder) {
+          console.log('About to call createPurchaseOrder with:', {
+            reqId: item.data.id,
+            supplierName: poData.supplier
+          });
+          
+          const createdPO = createPurchaseOrder(item.data.id, poData.supplier);
+          console.log('createPurchaseOrder returned:', createdPO);
+          
+          if (createdPO && markPOReadyForDelivery) {
+            console.log('Calling markPOReadyForDelivery with PO ID:', createdPO.id);
+            markPOReadyForDelivery(createdPO.id);
+          } else {
+            console.log('Could not proceed - createdPO:', createdPO, 'markPOReadyForDelivery exists:', !!markPOReadyForDelivery);
+          }
+        }
       }
 
       alert(
         "Purchase Order PDF generated and downloaded successfully! The PO has been sent to Receiving & Delivery."
       );
     } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("Error generating PDF. Please try again.");
+      console.error("Error generating PO:", error);
+      alert("Error generating PO. Please check console for details.");
     }
   };
 

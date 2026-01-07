@@ -9,20 +9,28 @@ import {
   Eye
 } from "lucide-react";
 
+// Helper function to normalize status display
+const normalizeStatus = (status) => {
+  if (status === 'APPROVED_BY_VP') return 'APPROVED';
+  return status ? status.replace(/_/g, ' ') : 'UNKNOWN';
+};
+
 export default function PendingApprovals() {
-  const { requisitions, purchaseOrders, vpSignRequisition, vpSignPO, inventory, suppliers } =
+  const { requisitions, vpSignRequisition, inventory, suppliers } =
     useSystem();
 
   const [confirmData, setConfirmData] = useState(null);
   const [selectedRequisition, setSelectedRequisition] = useState(null);
   const [showRequisitionModal, setShowRequisitionModal] = useState(false);
 
-  const pendingRF = requisitions.filter(
-    (r) => r.status === "PENDING APPROVAL"
-  );
-  const pendingPO = purchaseOrders.filter(
-    (p) => p.status === "PENDING APPROVAL"
-  );
+  const pendingRF = requisitions
+    .filter((r) => r.status === "PENDING APPROVAL")
+    .sort((a, b) => {
+      // Sort by creation date (newest first)
+      const dateA = new Date(a.requestDate || a.createdAt || 0);
+      const dateB = new Date(b.requestDate || b.createdAt || 0);
+      return dateB - dateA;
+    });
 
   const openConfirm = (item, type, approved) =>
     setConfirmData({ item, type, approved });
@@ -31,7 +39,6 @@ export default function PendingApprovals() {
   const executeAction = () => {
     const { item, type, approved } = confirmData;
     if (type === "RF") vpSignRequisition(item.id, approved);
-    else vpSignPO(item.id, approved);
 
     closeConfirm();
   };
@@ -65,7 +72,7 @@ export default function PendingApprovals() {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
+    <div className="grid grid-cols-1 animate-fadeIn">
 
       {/* ---------------- RF APPROVALS ---------------- */}
       <div className="card animate-slideUp border-l-4 border-amber-500">
@@ -126,63 +133,13 @@ export default function PendingApprovals() {
         ))}
       </div>
 
-      {/* ---------------- PO APPROVALS ---------------- */}
-      <div className="card animate-slideUp border-l-4 border-indigo-500">
-        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2 mb-4">
-          <FileText size={20} className="text-indigo-600" />
-          Purchase Order Approvals (PO)
-        </h3>
-
-        {pendingPO.length === 0 && (
-          <p className="text-slate-400 text-sm text-center py-6">
-            No pending Purchase Orders.
-          </p>
-        )}
-
-        {pendingPO.map((po) => (
-          <div
-            key={po.id}
-            className="bg-white border border-slate-200 rounded-lg p-4 mb-3 shadow-sm hover:shadow-md transition"
-          >
-            <div className="flex justify-between">
-              <div>
-                <p className="font-semibold text-slate-800">{po.item}</p>
-                <p className="text-xs text-slate-500">
-                  Supplier: {po.supplier}
-                </p>
-
-                <span className="badge bg-indigo-100 text-indigo-700 mt-1">
-                  Pending PO Approval
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <button
-                  className="text-green-600 hover:bg-green-50 p-2 rounded-md transition"
-                  onClick={() => openConfirm(po, "PO", true)}
-                >
-                  <CheckCircle size={20} />
-                </button>
-
-                <button
-                  className="text-red-600 hover:bg-red-50 p-2 rounded-md transition"
-                  onClick={() => openConfirm(po, "PO", false)}
-                >
-                  <XCircle size={20} />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* ---------------- CONFIRM POPUP ---------------- */}
       {confirmData && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fadeIn">
           <div className="card w-full max-w-md animate-scaleIn">
             <h3 className="text-lg font-bold text-slate-800 mb-3">
               {confirmData.approved ? "Approve" : "Reject"}{" "}
-              {confirmData.type === "RF" ? "Requisition" : "Purchase Order"}
+              Requisition Form
             </h3>
 
             <p className="text-slate-600 mb-6">
@@ -190,8 +147,7 @@ export default function PendingApprovals() {
               <strong>
                 {confirmData.approved ? "APPROVE" : "REJECT"}
               </strong>{" "}
-              the{" "}
-              {confirmData.type === "RF" ? "RF" : "PO"} for{" "}
+              the RF for{" "}
               <span className="font-semibold">{confirmData.item.item}</span>.
             </p>
 
@@ -254,11 +210,11 @@ export default function PendingApprovals() {
                     <h4 className="font-medium text-slate-700">Status</h4>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       selectedRequisition.status === 'PENDING APPROVAL' ? 'bg-blue-100 text-blue-800' :
-                      selectedRequisition.status === 'APPROVED_BY_VP' || selectedRequisition.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                      (selectedRequisition.status === 'APPROVED' || selectedRequisition.status === 'APPROVED_BY_VP') ? 'bg-green-100 text-green-800' :
                       selectedRequisition.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
                       'bg-gray-100 text-gray-800'
                     }`}>
-                      {selectedRequisition.status || 'UNKNOWN'}
+                      {normalizeStatus(selectedRequisition.status)}
                     </span>
                   </div>
                   <div>

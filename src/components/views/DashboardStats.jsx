@@ -6,8 +6,13 @@ export default function DashboardStats({ role, onCreatePO, onCreateRF }) {
   const { inventory, requisitions, purchaseOrders, autoRestockedItems } = useSystem();
 
   // Check if data is still loading (initial render or data fetching)
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(false);
   
+  // Log inventory changes
+  React.useEffect(() => {
+    console.log('DashboardStats - inventory updated:', inventory);
+  }, [inventory]);
+
   React.useEffect(() => {
     // Set loading to false once we have data
     if (inventory && requisitions) {
@@ -61,7 +66,10 @@ export default function DashboardStats({ role, onCreatePO, onCreateRF }) {
               </tr>
             </thead>
             <tbody>
-              {inventory.map((item, idx) => {
+              {[...inventory].sort((a, b) => {
+                // Sort by creation date (newest first) - use product_id as fallback since inventory items don't have creation date
+                return b.product_id - a.product_id;
+              }).map((item, idx) => {
                 const wasAuto = autoRestockedItems.find(r => r.product_id === item.product_id);
                 return (
                   <tr key={item.product_id} className={`border-b border-slate-100 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50"} hover:bg-slate-100 transition`}>
@@ -90,7 +98,7 @@ export default function DashboardStats({ role, onCreatePO, onCreateRF }) {
                         )}
                         {role === 'CUSTODIAN' && onCreateRF && (
                           <button
-                            className="flex items-center gap-1 text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition"
+                            className="flex items-center gap-1 text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
                             onClick={() => onCreateRF(item)}
                           >
                             <PlusCircle size={16} /> Create RF

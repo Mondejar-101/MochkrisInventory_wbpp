@@ -155,11 +155,16 @@ function MaterialOrderView() {
     e.preventDefault();
     
     // Filter out any empty items
-    const validItems = items.filter(item => item.productId && item.quantity);
+    const validItems = items.filter(item => {
+      // Check if productId is not empty and not the default placeholder
+      const hasValidProductId = item.productId && item.productId !== '' && item.productId !== null;
+      const hasValidQuantity = item.quantity && parseInt(item.quantity) > 0;
+      return hasValidProductId && hasValidQuantity;
+    });
     
     // Validate form
     if (validItems.length === 0) {
-      alert('Please add at least one valid item');
+      alert('Please select an item from the dropdown and enter a valid quantity');
       return;
     }
     
@@ -177,14 +182,23 @@ function MaterialOrderView() {
       const quantity = parseInt(item.quantity) || 1;
       const unitPrice = parseFloat(item.unitPrice) || 0;
       
+      // Check if this is a temporary item
+      const isTemporary = item.productId.toString().startsWith('temp-');
+      
       return {
         product_id: item.productId,
-        name: product.name || 'Unknown Product',
+        name: item.name || product.name || 'Unknown Product',
         quantity: quantity,
         unit_price: unitPrice,
-        unit: product.unit || 'pcs',
+        unit: isTemporary ? item.unit : (product.unit || 'pcs'),
         price: unitPrice,
-        total: (quantity * unitPrice).toFixed(2)
+        total: (quantity * unitPrice).toFixed(2),
+        // Include temporary item details if applicable
+        ...(isTemporary && {
+          isTemporary: true,
+          restockThreshold: item.restockThreshold || 3,
+          restockQty: item.restockQty || 10
+        })
       };
     });
     
@@ -235,20 +249,44 @@ function MaterialOrderView() {
     if (!newItem.name) return;
     
     try {
-      // Add the new item to inventory using the context function
-      const addedItem = await addNewInventoryItem({
-        ...newItem,
-        qty: 0, // Start with 0 quantity
-        price: parseFloat(newItem.price) || 0
-      });
+      // Check if item already exists in inventory (case insensitive)
+      const existingItem = inventory.find(
+        (item) => item.name.toLowerCase() === newItem.name.toLowerCase()
+      );
       
-      // Update the current item with the new product
+      let addedItem;
+      if (existingItem) {
+        // Use existing item
+        addedItem = existingItem;
+      } else {
+        // Create a temporary item object with a temporary ID
+        // This will NOT be added to inventory yet - only when delivery is accepted
+        const tempProductId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        addedItem = {
+          product_id: tempProductId,
+          name: newItem.name,
+          price: parseFloat(newItem.price) || 0,
+          qty: 0, // Start with 0 quantity
+          unit: newItem.unit || 'pcs',
+          restockThreshold: newItem.restockThreshold || 3,
+          restockQty: newItem.restockQty || 10,
+          isTemporary: true // Mark as temporary so receiveDelivery knows to add it to inventory
+        };
+      }
+      
+      // Update the current item with the product (existing or new)
       updateItem(index, {
         productId: addedItem.product_id.toString(),
-        quantity: 1,
+        quantity: newItem.qty || 1,
         unitPrice: parseFloat(newItem.price) || 0,
         showNewItemForm: false,
-        name: newItem.name // Store the name for display
+        name: addedItem.name, // Store the name for display
+        // Store additional info for temporary items
+        ...(addedItem.isTemporary && {
+          unit: addedItem.unit,
+          restockThreshold: addedItem.restockThreshold,
+          restockQty: addedItem.restockQty
+        })
       });
       
       // Add a new empty item for the next entry if this is the last item
@@ -541,18 +579,47 @@ function MaterialOrderView() {
                   value={item.productId} 
                   onChange={e => {
                     const newItems = [...items];
-                    newItems[index].productId = e.target.value;
+                    const productId = e.target.value;
+                    newItems[index].productId = productId;
+                    
+                    // Auto-set unit price to match inventory price (1:1 ratio)
+                    if (productId) {
+                      const selectedProduct = inventory.find(p => p.product_id.toString() === productId);
+                      if (selectedProduct) {
+                        newItems[index].unitPrice = selectedProduct.price || 0;
+                      } else {
+                        // Check if it's a temporary item
+                        const tempItem = items.find(item => item.productId === productId);
+                        if (tempItem && tempItem.name) {
+                          newItems[index].unitPrice = tempItem.unitPrice || 0;
+                        }
+                      }
+                    }
+                    
                     setItems(newItems);
                   }} 
                   className="w-full border p-2 rounded text-sm"
                   required
                 >
                   <option value=''>-- Choose Item --</option>
+                  {/* Include inventory items */}
                   {inventory.map(i => (
-                    <option key={i.product_id} value={i.product_id}>
+                    <option key={`inventory-${i.product_id}`} value={i.product_id}>
                       {i.name} (Stock: {i.qty} {i.unit})
                     </option>
                   ))}
+                  {/* Include temporary items from current form that aren't already in inventory */}
+                  {items
+                    .filter(formItem => 
+                      formItem.productId && 
+                      formItem.productId.toString().startsWith('temp-') &&
+                      !inventory.some(invItem => invItem.product_id.toString() === formItem.productId.toString())
+                    )
+                    .map(formItem => (
+                      <option key={`temp-${formItem.productId}`} value={formItem.productId}>
+                        {formItem.name} (New Item)
+                      </option>
+                    ))}
                 </select>
 
                   <div className="mt-2">
@@ -988,12 +1055,15 @@ function MaterialOrderView() {
                         <div key={idx} className="flex items-start gap-3 p-2 bg-slate-50 rounded">
                           <div className="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-blue-500"></div>
                           <div>
-                            <div className="font-medium">{entry.status || 'Status Update'}</div>
-                            <div className="text-xs text-slate-500">
-                              {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : 'Unknown date'}
-                              {entry.userName && ` • ${entry.userName}`}
+                            <div className="font-medium">
+                              {typeof entry === 'string' ? entry : (entry.status || 'Status Update')}
                             </div>
-                            {entry.notes && (
+                            <div className="text-xs text-slate-500">
+                              {typeof entry === 'object' && entry.timestamp ? new Date(entry.timestamp).toLocaleString() : 
+                               typeof entry === 'string' ? '' : 'Unknown date'}
+                              {typeof entry === 'object' && entry.userName && ` • ${entry.userName}`}
+                            </div>
+                            {typeof entry === 'object' && entry.notes && (
                               <div className="mt-1 text-sm text-slate-600">{entry.notes}</div>
                             )}
                           </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   LayoutDashboard,
   FilePlus,
@@ -8,9 +8,13 @@ import {
   Truck,
   Boxes,
   ChevronRight,
+  ChevronDown,
   Settings,
-  Home
+  Home,
+  PlusCircle
 } from 'lucide-react';
+
+// Sidebar component for navigation
 
 export default function Sidebar({
   currentRole,
@@ -19,6 +23,7 @@ export default function Sidebar({
   sidebarOpen,
   setSidebarOpen
 }) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const getMenuItems = () => {
     const base = [
@@ -31,6 +36,16 @@ export default function Sidebar({
           ...base,
           { id: "material_order", label: "New Material Order (PO)", icon: ShoppingCart },
           { id: "approvals", label: "Pending RF Approvals", icon: CheckSquare },
+          { 
+            id: "inventory_stocks", 
+            label: "Inventory Stocks", 
+            icon: Boxes,
+            isDropdown: true,
+            children: [
+              { id: "material_stock", label: "Material Stocks", icon: Package },
+              { id: "furniture_stock", label: "Furniture Stocks", icon: Home }
+            ]
+          },
           { id: "management", label: "Manage Items & Suppliers", icon: Settings }
         ];
 
@@ -43,12 +58,19 @@ export default function Sidebar({
         return [
           ...base,
           { id: "requisition", label: "New Material Request (RF)", icon: FilePlus },
-          { id: "inventory", label: "Inventory Monitoring", icon: Boxes },
-          { id: "delivery", label: "Receiving & Delivery (RM/AR)", icon: Truck },
+          { id: "add_furniture", label: "Add Furniture Stocks", icon: PlusCircle },
+          { 
+            id: "inventory_stocks", 
+            label: "Inventory", 
+            icon: Boxes,
+            isDropdown: true,
+            children: [
+              { id: "material_stock", label: "Material Stocks", icon: Package },
+              { id: "furniture_stock", label: "Furniture Stocks", icon: Home }
+            ]
+          },
           { id: "purchasing", label: "Procurement & PO Creation", icon: ShoppingCart },
-          { id: "direct_purchase", label: "Direct Purchase", icon: ShoppingCart },
-          { id: "purchase_orders", label: "Purchase Orders", icon: ShoppingCart },
-          { id: "furniture_stock", label: "Furniture Stock", icon: Home },
+          { id: "delivery", label: "Receiving & Delivery (RM/AR)", icon: Truck },
           { id: "management", label: "Manage Items & Suppliers", icon: Settings }
         ];
 
@@ -68,6 +90,16 @@ export default function Sidebar({
         ...base,
         { id: "material_request", label: "New Material Request (RF)", icon: FilePlus },
         { id: "approvals", label: "Pending RF Approvals", icon: CheckSquare },
+        { 
+          id: "inventory_stocks", 
+          label: "Inventory Stocks", 
+          icon: Boxes,
+          isDropdown: true,
+          children: [
+            { id: "material_stock", label: "Material Stocks", icon: Package },
+            { id: "furniture_stock", label: "Furniture Stocks", icon: Home }
+          ]
+        },
         { id: "management", label: "Manage Items & Suppliers", icon: Settings }
       ];
 
@@ -99,6 +131,64 @@ export default function Sidebar({
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = item.id === activeTab;
+          const isDropdownActive = item.children?.some(child => child.id === activeTab);
+
+          if (item.isDropdown) {
+            return (
+              <div key={item.id} className="space-y-1">
+                <button
+                  onClick={() => setDropdownOpen(dropdownOpen === item.id ? false : item.id)}
+                  className={`
+                    group w-full flex items-center justify-between px-4 py-3 rounded-lg
+                    transition-all duration-200 relative
+                    ${isDropdownActive || dropdownOpen === item.id
+                      ? "bg-indigo-600 text-white shadow-lg"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"}
+                  `}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon size={20} />
+                    <span className="font-medium">{item.label}</span>
+                  </div>
+                  <ChevronDown 
+                    size={18} 
+                    className={`transition-transform duration-200 ${
+                      dropdownOpen === item.id ? "rotate-180" : ""
+                    }`} 
+                  />
+                </button>
+                
+                {dropdownOpen === item.id && (
+                  <div className="ml-4 space-y-1 animate-slideDown">
+                    {item.children.map((child) => {
+                      const ChildIcon = child.icon;
+                      const isChildActive = child.id === activeTab;
+                      
+                      return (
+                        <button
+                          key={child.id}
+                          onClick={() => {
+                            setActiveTab(child.id);
+                            setSidebarOpen(false); // auto-close on mobile
+                          }}
+                          className={`
+                            w-full flex items-center gap-3 px-4 py-2 rounded-lg
+                            transition-all duration-200
+                            ${isChildActive
+                              ? "bg-indigo-400 text-white"
+                              : "text-slate-400 hover:bg-slate-700 hover:text-white"}
+                          `}
+                        >
+                          <ChildIcon size={16} />
+                          <span className="text-sm font-medium">{child.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
 
           return (
             <button

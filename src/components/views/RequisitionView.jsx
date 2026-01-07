@@ -52,6 +52,12 @@ const formatUnitType = (unit) => {
   return unitMap[unitLower] || unit.charAt(0).toUpperCase() + unit.slice(1);
 };
 
+// Helper function to normalize status display
+const normalizeStatus = (status) => {
+  if (status === 'APPROVED_BY_VP') return 'APPROVED';
+  return status ? status.replace(/_/g, ' ') : 'UNKNOWN';
+};
+
 function RequisitionView() {
   const { 
     inventory, 
@@ -153,6 +159,9 @@ function RequisitionView() {
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    console.log('RequisitionView - handleSubmit called');
+    console.log('RequisitionView - items:', items);
+    
     // Filter out any empty items
     const validItems = items.filter(item => item.productId && item.quantity);
     
@@ -176,14 +185,23 @@ function RequisitionView() {
       const quantity = parseInt(item.quantity) || 1;
       const unitPrice = parseFloat(item.unitPrice) || 0;
       
+      // Check if this is a temporary item
+      const isTemporary = item.productId.toString().startsWith('temp-');
+      
       return {
         product_id: item.productId,
-        name: product.name || 'Unknown Product',
+        name: item.name || product.name || 'Unknown Product',
         quantity: quantity,
         unit_price: unitPrice,
-        unit: product.unit || 'pcs',
+        unit: isTemporary ? item.unit : (product.unit || 'pcs'),
         price: unitPrice,
-        total: (quantity * unitPrice).toFixed(2)
+        total: (quantity * unitPrice).toFixed(2),
+        // Include temporary item details if applicable
+        ...(isTemporary && {
+          isTemporary: true,
+          restockThreshold: item.restockThreshold || 3,
+          restockQty: item.restockQty || 10
+        })
       };
     });
     
@@ -194,11 +212,14 @@ function RequisitionView() {
     const firstQuantity = parseInt(firstItem.quantity) || 1;
     const firstUnitPrice = parseFloat(firstItem.unitPrice) || 0;
     
+    // Check if this is a temporary item
+    const isFirstItemTemporary = firstItem.productId.toString().startsWith('temp-');
+    
     // Create a single requisition with all items stored in the items array
     const requisition = createRequisition(
       validItems.length > 1 
-        ? `${firstProduct.name || 'Unknown Product'} and ${validItems.length - 1} other item(s)`
-        : firstProduct.name || 'Unknown Product',
+        ? `${isFirstItemTemporary ? firstItem.name : (firstProduct.name || 'Unknown Product')} and ${validItems.length - 1} other item(s)`
+        : isFirstItemTemporary ? firstItem.name : (firstProduct.name || 'Unknown Product'),
       firstQuantity,
       firstItem.productId,
       supplier,
@@ -206,7 +227,9 @@ function RequisitionView() {
       {
         items: requisitionItems,
         notes: notes || '',
-        totalItems: validItems.length
+        department: currentUser?.department || 'General Department',
+        createdBy: currentUser?.id || 'system',
+        createdByName: currentUser?.name || 'System User'
       }
     );
     
@@ -223,20 +246,44 @@ function RequisitionView() {
     if (!newItem.name) return;
     
     try {
-      // Add the new item to inventory using the context function
-      const addedItem = await addNewInventoryItem({
-        ...newItem,
-        qty: 0, // Start with 0 quantity
-        price: parseFloat(newItem.price) || 0
-      });
+      // Check if item already exists in inventory (case insensitive)
+      const existingItem = inventory.find(
+        (item) => item.name.toLowerCase() === newItem.name.toLowerCase()
+      );
       
-      // Update the current item with the new product
+      let addedItem;
+      if (existingItem) {
+        // Use existing item
+        addedItem = existingItem;
+      } else {
+        // Create a temporary item object with a temporary ID
+        // This will NOT be added to inventory yet - only when requisition is processed
+        const tempProductId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        addedItem = {
+          product_id: tempProductId,
+          name: newItem.name,
+          price: parseFloat(newItem.price) || 0,
+          qty: 0, // Start with 0 quantity
+          unit: newItem.unit || 'pcs',
+          restockThreshold: newItem.restockThreshold || 3,
+          restockQty: newItem.restockQty || 10,
+          isTemporary: true // Mark as temporary so processing functions know to add it to inventory
+        };
+      }
+      
+      // Update the current item with the product (existing or new)
       updateItem(index, {
         productId: addedItem.product_id.toString(),
-        quantity: 1,
+        quantity: newItem.qty || 1,
         unitPrice: parseFloat(newItem.price) || 0,
         showNewItemForm: false,
-        name: newItem.name // Store the name for display
+        name: addedItem.name, // Store the name for display
+        // Store additional info for temporary items
+        ...(addedItem.isTemporary && {
+          unit: addedItem.unit,
+          restockThreshold: addedItem.restockThreshold,
+          restockQty: addedItem.restockQty
+        })
       });
       
       // Add a new empty item for the next entry if this is the last item
@@ -540,11 +587,24 @@ function RequisitionView() {
                   required
                 >
                   <option value=''>-- Choose Item --</option>
+                  {/* Include inventory items */}
                   {inventory.map(i => (
-                    <option key={i.product_id} value={i.product_id}>
+                    <option key={`inventory-${i.product_id}`} value={i.product_id}>
                       {i.name} (Stock: {i.qty} {i.unit})
                     </option>
                   ))}
+                  {/* Include temporary items from current form that aren't already in inventory */}
+                  {items
+                    .filter(formItem => 
+                      formItem.productId && 
+                      formItem.productId.toString().startsWith('temp-') &&
+                      !inventory.some(invItem => invItem.product_id.toString() === formItem.productId.toString())
+                    )
+                    .map(formItem => (
+                      <option key={`temp-${formItem.productId}`} value={formItem.productId}>
+                        {formItem.name} (New Item)
+                      </option>
+                    ))}
                 </select>
 
                   <div className="mt-2">
@@ -771,11 +831,11 @@ function RequisitionView() {
                                 ? 'bg-blue-50 text-blue-800'
                                 : requisition.status === 'REJECTED'
                                 ? 'bg-red-50 text-red-800'
-                                : requisition.status === 'APPROVED_BY_VP' || requisition.status === 'APPROVED'
+                                : (requisition.status === 'APPROVED' || requisition.status === 'APPROVED_BY_VP' || requisition.status === 'COMPLETED')
                                 ? 'bg-green-50 text-green-800'
                                 : 'bg-yellow-50 text-yellow-800'
                             }`}>
-                              {requisition.status.replace(/_/g, ' ')}
+                              {normalizeStatus(requisition.status)}
                             </span>
                             <div className="text-xs text-slate-500 mt-1">
                               {requisition.history?.[requisition.history.length - 1] || 'Request created'}
@@ -864,11 +924,11 @@ function RequisitionView() {
                     <h4 className="font-medium text-slate-700">Status</h4>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       selectedRequisition.status === 'PENDING APPROVAL' ? 'bg-blue-100 text-blue-800' :
-                      selectedRequisition.status === 'APPROVED_BY_VP' || selectedRequisition.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                      (selectedRequisition.status === 'APPROVED' || selectedRequisition.status === 'APPROVED_BY_VP') ? 'bg-green-100 text-green-800' :
                       selectedRequisition.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
                       'bg-gray-100 text-gray-800'
                     }`}>
-                      {selectedRequisition.status || 'UNKNOWN'}
+                      {normalizeStatus(selectedRequisition.status)}
                     </span>
                   </div>
                   <div>

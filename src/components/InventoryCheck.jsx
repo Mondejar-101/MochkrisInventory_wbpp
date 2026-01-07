@@ -6,8 +6,8 @@ export default function InventoryCheck() {
   const { requisitions, inventory, custodianCheckInventory } = useSystem();
   const [confirmData, setConfirmData] = useState(null);
 
-  // RFs approved by VP but not yet processed by Custodian
-  const toCheck = requisitions.filter((r) => r.status === "APPROVED_BY_VP");
+  // RFs approved but not yet processed by Custodian
+  const toCheck = requisitions.filter((r) => r.status === "APPROVED");
 
   const openConfirm = (rf) => setConfirmData(rf);
   const closeConfirm = () => setConfirmData(null);
