@@ -150,19 +150,50 @@ export default function ManagementView() {
                   />
                 </div>
               </div>
-              <div>
+              <div className="md:col-span-1">
                 <select
-                  placeholder="unit"
                   className="w-full border p-2 rounded text-sm"
                   value={newItem.unit}
                   onChange={(e) => setNewItem({...newItem, unit: e.target.value})}
                 >
-                  <option value="pcs">pcs</option>
-                  <option value="box">box</option>
-                  <option value="kg">kg</option>
-                  <option value="g">g</option>
-                  <option value="L">L</option>
-                  <option value="ml">ml</option>
+                  {/* Countable Items (most commonly used) */}
+                  <optgroup label="Countable Items">
+                    <option value="pcs">Pieces (pcs)</option>
+                    <option value="box">Boxes (box)</option>
+                    <option value="pack">Packs (pack)</option>
+                    <option value="bottle">Bottles (bottle)</option>
+                    <option value="bag">Bags (bag)</option>
+                    <option value="roll">Rolls (roll)</option>
+                    <option value="set">Sets (set)</option>
+                    <option value="pair">Pairs (pair)</option>
+                    <option value="doz">Dozens (doz)</option>
+                    <option value="sheet">Sheets (sheet)</option>
+                    <option value="ea">Each (ea)</option>
+                    <option value="case">Cases (case)</option>
+                  </optgroup>
+                  
+                  {/* Length */}
+                  <optgroup label="Length">
+                    <option value="m">Meters (m)</option>
+                    <option value="cm">Centimeters (cm)</option>
+                    <option value="mm">Millimeters (mm)</option>
+                    <option value="ft">Feet (ft)</option>
+                  </optgroup>
+                  
+                  {/* Weight */}
+                  <optgroup label="Weight">
+                    <option value="kg">Kilograms (kg)</option>
+                    <option value="g">Grams (g)</option>
+                    <option value="mg">Milligrams (mg)</option>
+                    <option value="lb">Pounds (lb)</option>
+                  </optgroup>
+                  
+                  {/* Volume (least commonly used) */}
+                  <optgroup label="Volume">
+                    <option value="L">Liters (L)</option>
+                    <option value="mL">Milliliters (mL)</option>
+                    <option value="gals">Gallons (gals)</option>
+                  </optgroup>
                 </select>
               </div>
               <div>
@@ -241,12 +272,49 @@ export default function ManagementView() {
                             value={editingItem.unit}
                             onChange={(e) => setEditingItem({...editingItem, unit: e.target.value})}
                           >
-                            <option value="pcs">pcs</option>
-                            <option value="box">box</option>
-                            <option value="kg">kg</option>
-                            <option value="g">g</option>
-                            <option value="L">L</option>
-                            <option value="ml">ml</option>
+                            {/* Countable Items (most commonly used) */}
+                            <optgroup label="Countable Items">
+                              <option value="pcs">Pieces (pcs)</option>
+                              <option value="box">Boxes (box)</option>
+                              <option value="pack">Packs (pack)</option>
+                              <option value="bottle">Bottles (bottle)</option>
+                              <option value="bag">Bags (bag)</option>
+                              <option value="roll">Rolls (roll)</option>
+                              <option value="set">Sets (set)</option>
+                              <option value="pair">Pairs (pair)</option>
+                              <option value="doz">Dozens (doz)</option>
+                              <option value="sheet">Sheets (sheet)</option>
+                              <option value="ea">Each (ea)</option>
+                              <option value="case">Cases (case)</option>
+                            </optgroup>
+                            
+                            {/* Length */}
+                            <optgroup label="Length">
+                              <option value="m">Meters (m)</option>
+                              <option value="cm">Centimeters (cm)</option>
+                              <option value="mm">Millimeters (mm)</option>
+                              <option value="ft">Feet (ft)</option>
+                              <option value="in">Inches (in)</option>
+                              <option value="yd">Yards (yd)</option>
+                            </optgroup>
+                            
+                            {/* Weight */}
+                            <optgroup label="Weight">
+                              <option value="kg">Kilograms (kg)</option>
+                              <option value="g">Grams (g)</option>
+                              <option value="mg">Milligrams (mg)</option>
+                              <option value="lb">Pounds (lb)</option>
+                              <option value="oz">Ounces (oz)</option>
+                            </optgroup>
+                            
+                            {/* Volume (least commonly used) */}
+                            <optgroup label="Volume">
+                              <option value="L">Liters (L)</option>
+                              <option value="mL">Milliliters (mL)</option>
+                              <option value="gals">Gallons (gals)</option>
+                              <option value="pt">Pints (pt)</option>
+                              <option value="qt">Quarts (qt)</option>
+                            </optgroup>
                           </select>
                         </td>
                         <td className="p-3">

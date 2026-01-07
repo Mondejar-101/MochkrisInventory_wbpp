@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { SystemProvider } from '../../context/SystemContext';
+import { SystemProvider, useSystem } from '../../context/SystemContext';
 import Layout from '../../components/layout/Layout';
 
 // Views
@@ -15,12 +15,14 @@ import ManagementView from '../../components/views/ManagementView';
 import MaterialOrderView from '../../components/views/MaterialOrderView';
 import LocalPurchaseOrderView from '../../components/views/PurchaseOrderView/LocalPurchaseOrderView';
 import CreateDirectPurchase from '../../components/views/CreateDirectPurchase';
+import FurnitureStock from '../../components/views/FurnitureStock';
 
 export default function GeneralManagerDashboard() {
   const [currentRole] = useState('CUSTODIAN');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
+  const { setPrefillData } = useSystem();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -28,9 +30,20 @@ export default function GeneralManagerDashboard() {
     navigate('/login');
   };
 
+  // Functions to handle navigation with pre-filled data
+  const handleCreatePO = (item) => {
+    setPrefillData({ type: 'PO', item });
+    setActiveTab('material_order');
+  };
+
+  const handleCreateRF = (item) => {
+    setPrefillData({ type: 'RF', item });
+    setActiveTab('requisition');
+  };
+
   // Allowed pages for general manager (using CUSTODIAN role for full access)
   const rolePermissions = {
-    CUSTODIAN: ["dashboard", "inventory", "delivery", "purchasing", "direct_purchase", "approvals", "requisition", "management", "purchase_orders"],
+    CUSTODIAN: ["dashboard", "inventory", "delivery", "purchasing", "direct_purchase", "approvals", "requisition", "management", "purchase_orders", "furniture_stock"],
   };
 
   // Auto-block unauthorized tab access
@@ -54,7 +67,7 @@ export default function GeneralManagerDashboard() {
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard": 
-        return <DashboardStats role="CUSTODIAN" />;
+        return <DashboardStats role="CUSTODIAN" onCreatePO={handleCreatePO} onCreateRF={handleCreateRF} />;
       case "requisition": 
         return <RequisitionView />;
       case "material_order": 
@@ -73,14 +86,15 @@ export default function GeneralManagerDashboard() {
         return <LocalPurchaseOrderView currentRole="CUSTODIAN" />;
       case "management": 
         return <ManagementView />;
+      case "furniture_stock": 
+        return <FurnitureStock />;
       default: 
-        return <DashboardStats role="CUSTODIAN" />;
+        return <DashboardStats role="CUSTODIAN" onCreatePO={handleCreatePO} onCreateRF={handleCreateRF} />;
     }
   };
 
   const getPageTitle = () => {
     const titles = {
-      'dashboard': 'Dashboard Overview',
       'requisition': 'New Material Request (RF)',
       'material_order': 'New Material Order (PO)',
       'approvals': 'Pending RF Approvals',
@@ -89,7 +103,8 @@ export default function GeneralManagerDashboard() {
       'purchasing': 'Procurement & PO Creation',
       'direct_purchase': 'Direct Purchase',
       'purchase_orders': 'Purchase Orders',
-      'management': 'Manage Items & Suppliers'
+      'management': 'Manage Items & Suppliers',
+      'furniture_stock': 'Furniture Stock'
     };
     return titles[activeTab] || 'Dashboard';
   };
@@ -105,11 +120,6 @@ export default function GeneralManagerDashboard() {
         setSidebarOpen={setSidebarOpen}
       >
         <div className="bg-white shadow-sm rounded-lg p-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {getPageTitle()}
-            </h1>
-          </div>
           {renderContent()}
         </div>
       </Layout>

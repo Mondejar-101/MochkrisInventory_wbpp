@@ -8,7 +8,8 @@ import {
   Truck,
   Boxes,
   ChevronRight,
-  Settings
+  Settings,
+  Home
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -29,7 +30,6 @@ export default function Sidebar({
         return [
           ...base,
           { id: "material_order", label: "New Material Order (PO)", icon: ShoppingCart },
-          { id: "purchase_orders", label: "Purchase Orders", icon: ShoppingCart },
           { id: "approvals", label: "Pending RF Approvals", icon: CheckSquare },
           { id: "management", label: "Manage Items & Suppliers", icon: Settings }
         ];
@@ -48,6 +48,7 @@ export default function Sidebar({
           { id: "purchasing", label: "Procurement & PO Creation", icon: ShoppingCart },
           { id: "direct_purchase", label: "Direct Purchase", icon: ShoppingCart },
           { id: "purchase_orders", label: "Purchase Orders", icon: ShoppingCart },
+          { id: "furniture_stock", label: "Furniture Stock", icon: Home },
           { id: "management", label: "Manage Items & Suppliers", icon: Settings }
         ];
 
@@ -59,6 +60,14 @@ export default function Sidebar({
     case "ADMIN":
       return [
         ...base,
+        { id: "management", label: "Manage Items & Suppliers", icon: Settings }
+      ];
+      
+    case "GENERAL_MANAGER":
+      return [
+        ...base,
+        { id: "material_request", label: "New Material Request (RF)", icon: FilePlus },
+        { id: "approvals", label: "Pending RF Approvals", icon: CheckSquare },
         { id: "management", label: "Manage Items & Suppliers", icon: Settings }
       ];
 

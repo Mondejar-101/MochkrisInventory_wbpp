@@ -1,188 +1,306 @@
 import React, { useState } from "react";
 import { useSystem } from "../context/SystemContext";
-import { ShoppingCart, FileText, BadgeCheck, AlertTriangle } from "lucide-react";
+import {
+  ShoppingCart,
+  FileText,
+  BadgeCheck,
+  AlertTriangle,
+  Eye,
+  Download,
+} from "lucide-react";
+import {
+  generatePurchaseOrderPDF,
+  generateRequisitionPDF,
+} from "../services/pdfService";
 
 export default function PurchasingView() {
-  const { requisitions, createPurchaseOrder, purchaseOrders } = useSystem();
+  const {
+    requisitions,
+    createPurchaseOrder,
+    purchaseOrders,
+    inventory,
+    suppliers,
+    markPOReadyForDelivery,
+  } = useSystem();
 
-  const toPurchase = requisitions.filter(
-    (r) => r.status === "FORWARDED_TO_PURCHASING"
+  // Get POs sent from department head (status: SENT_TO_MANAGER)
+  const pendingPOs = purchaseOrders.filter(
+    (po) => po.status === "SENT_TO_MANAGER" || po.status === "SENT_TO_MANAGER"
   );
 
-  const [selectedSupplier, setSelectedSupplier] = useState(null);
-  const [confirmData, setConfirmData] = useState(null);
+  // Get approved RFs (status: APPROVED_BY_VP)
+  const approvedRFs = requisitions.filter(
+    (r) => r.status === "APPROVED_BY_VP" || r.status === "APPROVED"
+  );
 
-  const suppliersMock = [
-    { name: "WoodWorks Inc.", price: 500, lead: "3 days" },
-    { name: "Global Furnishings", price: 520, lead: "2 days" },
-    { name: "Local Supply Co.", price: 480, lead: "4 days" },
+  // Combine both for display
+  const itemsToProcess = [
+    ...pendingPOs.map((po) => ({ type: "PO", data: po })),
+    ...approvedRFs.map((rf) => ({ type: "RF", data: rf })),
   ];
 
-  const openConfirm = (rf) =>
-    setConfirmData({ rf, supplier: selectedSupplier });
-  const closeConfirm = () => setConfirmData(null);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [showPDFModal, setShowPDFModal] = useState(false);
+  const [pdfBlob, setPdfBlob] = useState(null);
 
-  const finalizePO = () => {
-    createPurchaseOrder(confirmData.rf.id, confirmData.supplier);
-    closeConfirm();
+  const handleViewPDF = async (item) => {
+    try {
+      setSelectedItem(item);
+      let pdfBlob;
+
+      if (item.type === "PO") {
+        // Prepare PO data with proper structure
+        const poData = {
+          ...item.data,
+          poNumber: item.data.id || `PO-${Date.now()}`,
+          items: item.data.items || [
+            {
+              name: item.data.item || "Unknown Item",
+              quantity: item.data.qty || 1,
+              unitPrice: item.data.price || 0,
+              price: item.data.price || 0,
+            },
+          ],
+          supplier: item.data.supplier?.name || item.data.supplier || "N/A",
+          createdAt: item.data.createdAt || new Date().toISOString(),
+        };
+        pdfBlob = await generatePurchaseOrderPDF(poData, false); // false = don't download
+      } else {
+        pdfBlob = await generateRequisitionPDF(item.data, false); // false = don't download
+      }
+
+      if (pdfBlob) {
+        setPdfBlob(pdfBlob);
+        setShowPDFModal(true);
+      }
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Error generating PDF. Please try again.");
+    }
+  };
+
+  const handleGeneratePO = async (item) => {
+    try {
+      let poData;
+      if (item.type === "PO") {
+        // Prepare PO data with proper structure
+        poData = {
+          ...item.data,
+          poNumber: item.data.id || Date.now().toString(),
+          items: item.data.items || [
+            {
+              name: item.data.item || "Unknown Item",
+              quantity: item.data.qty || 1,
+              unitPrice: item.data.price || 0,
+              price: item.data.price || 0,
+            },
+          ],
+          supplier: item.data.supplier?.name || item.data.supplier || "N/A",
+          createdAt: item.data.createdAt || new Date().toISOString(),
+        };
+      } else {
+        // Convert RF to PO format and generate
+        poData = {
+          ...item.data,
+          poNumber: item.data.id?.toString() || Date.now().toString(),
+          items: item.data.items || [
+            {
+              name: item.data.item,
+              quantity: item.data.qty,
+              unitPrice: item.data.price || 0,
+              price: item.data.price || 0,
+            },
+          ],
+          supplier: item.data.supplier?.name || item.data.supplier || "N/A",
+          createdAt: item.data.requestDate || new Date().toISOString(),
+        };
+      }
+
+      // Generate and download PDF
+      await generatePurchaseOrderPDF(poData, true);
+
+      // Update PO status to "SENT TO MANAGER" so it appears in Receiving & Delivery
+      const poId = item.data.id || item.data.id?.toString();
+      if (poId && markPOReadyForDelivery) {
+        markPOReadyForDelivery(poId);
+      }
+
+      alert(
+        "Purchase Order PDF generated and downloaded successfully! The PO has been sent to Receiving & Delivery."
+      );
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Error generating PDF. Please try again.");
+    }
+  };
+
+  const closePDFModal = () => {
+    setShowPDFModal(false);
+    setSelectedItem(null);
+    setPdfBlob(null);
   };
 
   return (
     <div className="space-y-8 animate-fadeIn">
-
       <h2 className="text-xl font-bold text-slate-800 mb-2">
-        Purchasing – Canvassing & PO Creation
+        Procurement & PO Creation
       </h2>
       <p className="text-slate-500 text-sm mb-4">
-        These items were forwarded by the Custodian due to insufficient stock.
+        Purchase Orders and approved Requisition Forms from Department Head
+        ready for processing.
       </p>
 
-      {/* ---------------- Pending Canvass ---------------- */}
+      {/* ---------------- Items to Process ---------------- */}
       <div className="grid gap-6">
-        {toPurchase.length === 0 && (
+        {itemsToProcess.length === 0 && (
           <p className="text-slate-400 card text-center py-8">
-            No requisitions need purchasing at the moment.
+            No items need processing at the moment.
           </p>
         )}
 
-        {toPurchase.map((r) => (
-          <div
-            key={r.id}
-            className="card card-hover animate-slideUp border-l-4 border-orange-500"
-          >
-            {/* RF Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="font-bold text-lg">{r.item}</p>
-                <p className="text-slate-500 text-sm">Quantity Needed: {r.qty}</p>
-              </div>
+        {itemsToProcess.map((item) => {
+          const isPO = item.type === "PO";
+          const data = item.data;
+          const items = isPO
+            ? data.items || []
+            : data.items || [
+                {
+                  name: data.item,
+                  quantity: data.qty,
+                  unitPrice: data.price || 0,
+                  price: data.price || 0,
+                },
+              ];
+          const supplier = isPO
+            ? data.supplier?.name || data.supplier || "N/A"
+            : data.supplier?.name || data.supplier || "N/A";
 
-              <span className="badge bg-orange-100 text-orange-700">
-                Needs PO
-              </span>
-            </div>
-
-            {/* Supplier Canvassing */}
-            <div className="bg-white p-4 rounded-lg border border-slate-200">
-              <p className="font-semibold text-sm text-slate-700 mb-2">
-                Canvass Supplier Quotes
-              </p>
-
-              <table className="w-full text-sm border-collapse mb-3">
-                <thead>
-                  <tr className="text-left text-xs text-slate-500 border-b">
-                    <th className="py-1">Supplier</th>
-                    <th className="py-1">Price</th>
-                    <th className="py-1">Lead Time</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {suppliersMock.map((s) => (
-                    <tr
-                      key={s.name}
-                      className="border-b last:border-0 text-slate-700"
-                    >
-                      <td className="py-2">{s.name}</td>
-                      <td className="py-2">₱ {s.price.toLocaleString()}</td>
-                      <td className="py-2">{s.lead}</td>
-                      <td className="py-2 text-right">
-                        <button
-                          className={`px-3 py-1 rounded text-xs font-medium border ${
-                            selectedSupplier === s.name
-                              ? "bg-indigo-600 text-white border-indigo-600"
-                              : "bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200"
-                          }`}
-                          onClick={() => setSelectedSupplier(s.name)}
-                        >
-                          {selectedSupplier === s.name ? "Selected" : "Choose"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* PO Button */}
-              <button
-                onClick={() => openConfirm(r)}
-                disabled={!selectedSupplier}
-                className={`w-full btn-primary flex items-center justify-center gap-2 ${
-                  !selectedSupplier ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-              >
-                <FileText size={16} />
-                Generate Purchase Order (PO)
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-400 mt-2">
-              *PO will be submitted to VP for approval.
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* ---------------- PO Timeline ---------------- */}
-      <div className="border-t pt-8">
-        <h3 className="font-bold text-slate-600 mb-3">
-          Recent Purchase Orders
-        </h3>
-
-        <div className="space-y-2">
-          {purchaseOrders.map((po) => (
+          return (
             <div
-              key={po.id}
-              className="bg-white border border-slate-200 rounded p-3 flex justify-between items-center text-sm shadow-sm"
+              key={`${item.type}-${data.id}`}
+              className="card card-hover animate-slideUp border-l-4 border-indigo-500"
             >
-              <div>
-                <p className="font-semibold">{po.item}</p>
-                <p className="text-xs text-slate-500">Supplier: {po.supplier}</p>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="font-bold text-lg">
+                    {isPO ? "Purchase Order" : "Requisition Form"}
+                  </p>
+                  <p className="text-slate-500 text-sm">
+                    {isPO ? `PO ID: ${data.id}` : `RF ID: ${data.id}`}
+                  </p>
+                  <p className="text-slate-500 text-sm">Supplier: {supplier}</p>
+                  {items.length > 0 && (
+                    <p className="text-slate-500 text-sm mt-1">
+                      Items: {items.length} item(s)
+                    </p>
+                  )}
+                </div>
+
+                <span
+                  className={`badge ${
+                    isPO
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-green-100 text-green-700"
+                  }`}
+                >
+                  {isPO ? "Purchase Order" : "Approved RF"}
+                </span>
               </div>
 
-              <span
-                className={`badge ${
-                  po.status === "PENDING_PO_APPROVAL"
-                    ? "bg-amber-100 text-amber-700"
-                    : po.status === "SENT TO MANAGER"
-                    ? "bg-blue-600 text-white"
-                    : po.status === "COMPLETED"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                {po.status.replace(/_/g, " ")}
-              </span>
+              {/* Items List */}
+              {items.length > 0 && (
+                <div className="bg-white p-4 rounded-lg border border-slate-200 mb-4">
+                  <p className="font-semibold text-sm text-slate-700 mb-2">
+                    Items:
+                  </p>
+                  <div className="space-y-2">
+                    {items.map((it, idx) => (
+                      <div
+                        key={idx}
+                        className="text-sm text-slate-600 border-b pb-2 last:border-0"
+                      >
+                        <span className="font-medium">
+                          {it.name || it.item}
+                        </span>
+                        <span className="ml-2">
+                          Qty: {it.quantity || it.qty} × ₱
+                          {parseFloat(it.unitPrice || it.price || 0).toFixed(2)}
+                        </span>
+                        <span className="ml-2 text-slate-500">
+                          = ₱
+                          {(
+                            (it.quantity || it.qty) *
+                            (it.unitPrice || it.price || 0)
+                          ).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-2 border-t">
+                    <p className="text-sm font-semibold text-slate-800">
+                      Total: ₱
+                      {items
+                        .reduce((sum, it) => {
+                          const qty = it.quantity || it.qty || 0;
+                          const price = it.unitPrice || it.price || 0;
+                          return sum + qty * price;
+                        }, 0)
+                        .toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleViewPDF(item)}
+                  className="flex-1 btn-soft flex items-center justify-center gap-2"
+                >
+                  <Eye size={16} />
+                  View PDF
+                </button>
+                <button
+                  onClick={() => handleGeneratePO(item)}
+                  className="flex-1 btn-primary flex items-center justify-center gap-2"
+                >
+                  <Download size={16} />
+                  Generate Purchase Order (PO)
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
-      {/* ---------------- Confirm Modal ---------------- */}
-      {confirmData && (
+      {/* ---------------- PDF Preview Modal ---------------- */}
+      {showPDFModal && pdfBlob && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fadeIn">
-          <div className="card w-full max-w-md animate-scaleIn">
-            <h3 className="text-lg font-bold text-slate-800 mb-3">
-              Confirm Purchase Order
-            </h3>
-
-            <p className="text-slate-700 mb-5">
-              You are about to create a Purchase Order for{" "}
-              <strong>{confirmData.rf.item}</strong> using supplier:{" "}
-              <strong className="text-indigo-600">{confirmData.supplier}</strong>.
-            </p>
-
-            <p className="text-xs text-slate-500 mb-5">
-              This PO will be forwarded to the **VP / Top Management** for
-              approval before sending to supplier.
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button className="btn-soft" onClick={closeConfirm}>
-                Cancel
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-800">
+                {selectedItem?.type === "PO"
+                  ? "Purchase Order PDF"
+                  : "Requisition Form PDF"}
+              </h3>
+              <button
+                onClick={closePDFModal}
+                className="text-slate-500 hover:text-slate-700 text-2xl"
+              >
+                ✕
               </button>
-              <button className="btn-primary" onClick={finalizePO}>
-                Confirm PO
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                src={URL.createObjectURL(pdfBlob)}
+                className="w-full h-full"
+                title="PDF Preview"
+              />
+            </div>
+            <div className="p-4 border-t flex justify-end gap-3">
+              <button onClick={closePDFModal} className="btn-soft">
+                Close
               </button>
             </div>
           </div>

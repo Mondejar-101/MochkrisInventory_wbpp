@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { SystemProvider } from '../../context/SystemContext';
+import { SystemProvider, useSystem } from '../../context/SystemContext';
 import Layout from '../../components/layout/Layout';
 
 // Views
@@ -9,13 +9,13 @@ import DashboardStats from '../../components/views/DashboardStats';
 import MaterialOrderView from '../../components/views/MaterialOrderView';
 import ApprovalsView from '../../components/PendingApprovals';
 import ManagementView from '../../components/views/ManagementView';
-import LocalPurchaseOrderView from '../../components/views/PurchaseOrderView/LocalPurchaseOrderView';
 
 export default function DeptHeadDashboard() {
   const [currentRole] = useState('DEPARTMENT');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
+  const { setPrefillData } = useSystem();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -23,9 +23,15 @@ export default function DeptHeadDashboard() {
     navigate('/login');
   };
 
+  // Function to handle navigation with pre-filled data for PO
+  const handleCreatePO = (item) => {
+    setPrefillData({ type: 'PO', item });
+    setActiveTab('material_order');
+  };
+
   // Allowed pages for department head
   const rolePermissions = {
-    DEPARTMENT: ["dashboard", "material_order", "management", "approvals", "purchase_orders"],
+    DEPARTMENT: ["dashboard", "material_order", "management", "approvals"],
   };
 
   // Auto-block unauthorized tab access
@@ -48,10 +54,8 @@ export default function DeptHeadDashboard() {
   // Render active screen
   const renderContent = () => {
     switch (activeTab) {
-      case "purchase_orders":
-        return <LocalPurchaseOrderView currentRole="DEPARTMENT" />;
       case "dashboard": 
-        return <DashboardStats role="DEPARTMENT" />;
+        return <DashboardStats role="DEPARTMENT" onCreatePO={handleCreatePO} />;
       case "material_order": 
         return <MaterialOrderView />;
       case "approvals": 
@@ -59,7 +63,7 @@ export default function DeptHeadDashboard() {
       case "management": 
         return <ManagementView />;
       default: 
-        return <DashboardStats role="DEPARTMENT" />;
+        return <DashboardStats role="DEPARTMENT" onCreatePO={handleCreatePO} />;
     }
   };
 

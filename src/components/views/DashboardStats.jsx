@@ -2,8 +2,8 @@ import React from 'react';
 import { Package, AlertTriangle, CheckCircle, Clock, ClipboardList, ShoppingCart, Truck, PlusCircle } from "lucide-react";
 import { useSystem } from "../../context/SystemContext";
 
-export default function DashboardStats() {
-  const { inventory, requisitions, purchaseOrders, autoRestockedItems, autoCreateRequisition } = useSystem();
+export default function DashboardStats({ role, onCreatePO, onCreateRF }) {
+  const { inventory, requisitions, purchaseOrders, autoRestockedItems } = useSystem();
 
   // Check if data is still loading (initial render or data fetching)
   const [isLoading, setIsLoading] = React.useState(true);
@@ -54,10 +54,10 @@ export default function DashboardStats() {
           <table className="w-full text-left border-collapse text-sm">
             <thead>
               <tr className="text-slate-500 bg-slate-100 border-b border-slate-200 text-xs uppercase tracking-wide">
-                <th className="py-3 px-3">Item</th>
-                <th className="py-3 px-3">Stock Level</th>
-                <th className="py-3 px-3">Status</th>
-                <th className="py-3 px-3">Actions</th>
+                <th className="py-3 px-3 text-center">Item</th>
+                <th className="py-3 px-3 text-center">Stock Level</th>
+                <th className="py-3 px-3 text-center">Status</th>
+                <th className="py-3 px-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -65,11 +65,11 @@ export default function DashboardStats() {
                 const wasAuto = autoRestockedItems.find(r => r.product_id === item.product_id);
                 return (
                   <tr key={item.product_id} className={`border-b border-slate-100 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50"} hover:bg-slate-100 transition`}>
-                    <td className="py-3 px-3 text-slate-700 font-medium">
-                      {item.name} {wasAuto && <span className="text-xs text-pink-600 ml-2">(Auto-RF)</span>}
+                    <td className="py-3 px-3 text-slate-700 font-medium text-center">
+                      {item.name}
                     </td>
-                    <td className="py-3 px-3 text-slate-700">{item.qty} {item.unit}</td>
-                    <td className="py-3 px-3">
+                    <td className="py-3 px-3 text-slate-700 text-center">{item.qty}</td>
+                    <td className="py-3 px-3 text-center">
                       {item.qty === 0 ? (
                         <span className="badge bg-red-100 text-red-700">Out of Stock</span>
                       ) : item.qty < item.restockThreshold ? (
@@ -78,13 +78,25 @@ export default function DashboardStats() {
                         <span className="badge bg-emerald-100 text-emerald-700">In Stock</span>
                       )}
                     </td>
-                    <td className="py-3 px-3">
-                      <button
-                        className="flex items-center gap-1 text-sm bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 transition"
-                        onClick={() => autoCreateRequisition(item)}
-                      >
-                        <PlusCircle size={16} /> Create PO
-                      </button>
+                    <td className="py-3 px-3 text-center">
+                      <div className="flex gap-2 justify-center">
+                        {role === 'DEPARTMENT' && onCreatePO && (
+                          <button
+                            className="flex items-center gap-1 text-sm bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 transition"
+                            onClick={() => onCreatePO(item)}
+                          >
+                            <PlusCircle size={16} /> Create PO
+                          </button>
+                        )}
+                        {role === 'CUSTODIAN' && onCreateRF && (
+                          <button
+                            className="flex items-center gap-1 text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition"
+                            onClick={() => onCreateRF(item)}
+                          >
+                            <PlusCircle size={16} /> Create RF
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -93,33 +105,6 @@ export default function DashboardStats() {
           </table>
         </div>
       </div>
-
-      {/* Auto-RF list */}
-      {autoRestockedItems.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 card-hover">
-          <h3 className="font-semibold text-lg text-slate-800 mb-4">Auto-Generated Requisitions</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="text-slate-500 bg-slate-100 border-b border-slate-200 text-xs uppercase tracking-wide">
-                  <th className="py-3 px-3">Item</th>
-                  <th className="py-3 px-3">Qty (to request)</th>
-                  <th className="py-3 px-3">Created At</th>
-                </tr>
-              </thead>
-              <tbody>
-                {autoRestockedItems.slice().reverse().map((it, idx) => (
-                  <tr key={idx} className={`border-b border-slate-100 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50"} hover:bg-slate-100 transition`}>
-                    <td className="py-3 px-3 text-slate-700 font-medium">{it.name}</td>
-                    <td className="py-3 px-3 text-slate-700">{it.restockQty}</td>
-                    <td className="py-3 px-3 text-slate-700">{it.autoCreatedAt}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

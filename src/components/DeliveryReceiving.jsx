@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { useSystem } from "../context/SystemContext";
-import { 
-  Truck, 
-  AlertTriangle, 
-  CheckSquare, 
-  FileText, 
-  Package 
+import {
+  Truck,
+  AlertTriangle,
+  CheckSquare,
+  FileText,
+  Package,
 } from "lucide-react";
 
 export default function DeliveryReceiving() {
@@ -29,7 +29,6 @@ export default function DeliveryReceiving() {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-
       <h2 className="text-xl font-bold text-slate-800 mb-4">
         Incoming Deliveries (RM / DR / AR Processing)
       </h2>
@@ -61,13 +60,30 @@ export default function DeliveryReceiving() {
 
           {/* PO Content */}
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-            <div className="flex items-center gap-4 text-slate-700">
-              <Package size={20} className="text-slate-500" />
-              <div>
-                <p className="font-semibold">{po.item}</p>
-                <p className="text-sm">Quantity: {po.qty}</p>
+            <Package size={20} className="text-slate-500 mb-3" />
+            {po.items && Array.isArray(po.items) && po.items.length > 0 ? (
+              <div className="space-y-2">
+                <p className="font-semibold text-slate-700 mb-2">Items:</p>
+                {po.items.map((item, idx) => (
+                  <div key={idx} className="text-sm text-slate-600">
+                    <span className="font-medium">
+                      {item.name || item.item || `Item ${idx + 1}`}
+                    </span>
+                    <span className="ml-2">
+                      Qty: {item.quantity || item.qty || 0}
+                    </span>
+                    {item.unit && <span className="ml-1">({item.unit})</span>}
+                  </div>
+                ))}
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-4 text-slate-700">
+                <div>
+                  <p className="font-semibold">{po.item || "Unknown Item"}</p>
+                  <p className="text-sm">Quantity: {po.qty || 0}</p>
+                </div>
+              </div>
+            )}
 
             {/* Documents Overview */}
             <div className="mt-4 flex gap-6 text-xs text-slate-500">
@@ -127,10 +143,7 @@ export default function DeliveryReceiving() {
             </p>
 
             <div className="flex justify-end gap-3">
-              <button
-                onClick={closeConfirm}
-                className="btn-soft px-4 py-2"
-              >
+              <button onClick={closeConfirm} className="btn-soft px-4 py-2">
                 Cancel
               </button>
               <button
@@ -145,7 +158,6 @@ export default function DeliveryReceiving() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

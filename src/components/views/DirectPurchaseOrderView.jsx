@@ -66,7 +66,6 @@ export default function DirectPurchaseOrderView() {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800">New Material Order (PO)</h2>
       </div>
-
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Supplier Selection */}
