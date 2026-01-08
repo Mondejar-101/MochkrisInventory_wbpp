@@ -36,7 +36,6 @@ export default function Sidebar({
         return [
           ...base,
           { id: "material_order", label: "New Material Order (PO)", icon: ShoppingCart },
-          { id: "approvals", label: "Pending RF Approvals", icon: CheckSquare },
           { 
             id: "inventory_stocks", 
             label: "Inventory Stocks", 
@@ -47,6 +46,17 @@ export default function Sidebar({
               { id: "furniture_stock", label: "Furniture Stocks", icon: Home }
             ]
           },
+          { 
+            id: "dispense_history", 
+            label: "Dispense History", 
+            icon: Clock,
+            isDropdown: true,
+            children: [
+              { id: "material_dispense", label: "Material", icon: Package },
+              { id: "furniture_dispense", label: "Furniture", icon: Home }
+            ]
+          },
+          { id: "approvals", label: "Pending RF Approvals", icon: CheckSquare },
           { id: "management", label: "Manage Items & Suppliers", icon: Settings }
         ];
 

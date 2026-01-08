@@ -54,10 +54,6 @@ export const SystemProvider = ({ children }) => {
     "purchaseRequests",
     []
   );
-  const [autoRestockedItems, setAutoRestockedItems] = usePersistedState(
-    "autoRestockedItems",
-    []
-  );
   const [managers, setManagers] = usePersistedState("managers", []);
   
   // State for pre-filling forms from dashboard
@@ -71,6 +67,16 @@ export const SystemProvider = ({ children }) => {
 
   // Furniture dispense history state with persistence
   const [furnitureDispenseHistory, setFurnitureDispenseHistory] = usePersistedState("furnitureDispenseHistory", []);
+
+  // Helper function to generate ID in format: YYYYMMDD-XXXXXX
+  const generateId = () => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    return `${year}${month}${day}-${random}`;
+  };
 
   // Add furniture items to stock
   const addFurnitureItems = useCallback((items) => {
@@ -354,32 +360,6 @@ export const SystemProvider = ({ children }) => {
     return [];
   };
 
-  // -------------------------
-  // Auto-create Requisition (when low stock)
-  // -------------------------
-  const autoCreateRequisition = (item) => {
-    const newReq = {
-      id: Date.now(),
-      item: item.name,
-      qty: item.restockQty,
-      product_id: item.product_id,
-      status: "PENDING APPROVAL",
-      auto: true,
-      history: ["Auto-generated due to low stock"],
-      requestDate: new Date().toISOString(),
-    };
-    setRequisitions((prev) => [...prev, newReq]);
-    setAutoRestockedItems((prev) => [
-      ...prev,
-      {
-        product_id: item.product_id,
-        name: item.name,
-        restockQty: item.restockQty,
-        autoCreatedAt: new Date().toLocaleTimeString(),
-      },
-    ]);
-    console.log(`📄 Auto-Requisition Created for ${item.name}`);
-  };
 
   // -------------------------
   // Manual create RF (department)
@@ -394,35 +374,14 @@ export const SystemProvider = ({ children }) => {
   ) => {
     console.log('createRequisition called with:', { itemName, qty, product_id, supplier, price });
     
-    // Check if we have a valid product_id (not 0 or undefined)
-    let itemId = product_id;
-    let itemExists =
-      !isNaN(product_id) &&
-      product_id > 0 &&
-      inventory.some((item) => item.product_id === product_id);
-
-    // Check if this is a temporary item (starts with 'temp-')
-    const isTemporary = product_id && product_id.toString().startsWith('temp-');
-    
-    // If item doesn't exist in inventory and is not temporary, add it
-    if (!itemExists && !isTemporary) {
-      const newItem = {
-        name: itemName,
-        qty: 0, // Start with 0 since we're requesting it
-        price: parseFloat(price) || 0,
-        unit: "pcs", // Default unit, can be updated later
-        restockThreshold: 3, // Default threshold
-        restockQty: 10, // Default restock quantity
-      };
-      const addedItem = addNewInventoryItem(newItem);
-      itemId = addedItem.product_id;
-    }
+    // Use the provided product_id directly - items should already exist in inventory
+    const itemId = product_id;
 
     const newReq = {
-      id: Date.now(),
+      id: generateId(),
       item: itemName,
       qty: parseInt(qty),
-      product_id: itemId, // Use existing or new item ID (or temporary ID)
+      product_id: itemId,
       price: parseFloat(price) || 0,
       status: "PENDING APPROVAL",
       history: [
@@ -431,9 +390,7 @@ export const SystemProvider = ({ children }) => {
       ],
       requestDate: new Date().toISOString(),
       ...(supplier && { supplier }),
-      ...additionalData, // Allow additional data like items array, notes, etc.
-      // Mark if this contains temporary items
-      ...(isTemporary && { hasTemporaryItems: true })
+      ...additionalData
     };
 
     setRequisitions((prev) => {
@@ -467,7 +424,6 @@ export const SystemProvider = ({ children }) => {
 
   // -------------------------
   // Custodian checks inventory for approved RF (delivers if enough stock)
-  // If stock becomes < threshold after delivery, auto-create RF
   // -------------------------
   const custodianCheckInventory = (reqId) => {
     const req = requisitions.find((r) => r.id === reqId);
@@ -539,12 +495,6 @@ export const SystemProvider = ({ children }) => {
         )
       );
 
-      // check threshold and auto-create RF if needed
-      const newQty = item.qty - req.qty;
-      if (newQty < item.restockThreshold) {
-        // use the current item snapshot (before setInventory takes effect)
-        autoCreateRequisition(item);
-      }
     }
   };
 
@@ -577,15 +527,20 @@ export const SystemProvider = ({ children }) => {
     }
 
     const newPO = {
-      id: Date.now().toString(),
+      id: generateId(),
       reqId,
-      item: req.item,
-      product_id: req.product_id,
-      qty: req.qty,
+      items: req.items || [{
+        name: req.item,
+        product_id: req.product_id,
+        quantity: req.qty,
+        unit_price: req.price || 0,
+        unit: 'pcs'
+      }],
       supplier: supplierName,
       status: "PENDING_PO_APPROVAL",
       history: ["PO Created after Canvassing"],
       type: "RF_LINKED",
+      createdAt: new Date().toISOString(),
       // Preserve temporary item information
       ...(isTemporary && {
         isTemporary: true,
@@ -675,7 +630,7 @@ export const SystemProvider = ({ children }) => {
     if (Array.isArray(orderOrItems)) {
       // Backward compatibility: if first arg is items array
       newPO = {
-        id: Date.now().toString(),
+        id: generateId(),
         createdAt: new Date().toISOString(),
         items: orderOrItems,
         supplier: supplierName,
@@ -687,7 +642,7 @@ export const SystemProvider = ({ children }) => {
       // If first arg is a complete order object
       newPO = {
         ...orderOrItems,
-        id: orderOrItems.id || Date.now().toString(),
+        id: orderOrItems.id || generateId(),
         createdAt: orderOrItems.createdAt || new Date().toISOString(),
         status: orderOrItems.status || "SENT TO MANAGER",
         type: orderOrItems.type || "DIRECT_PURCHASE",
@@ -1021,13 +976,11 @@ export const SystemProvider = ({ children }) => {
         purchaseRequests,
         createPurchaseRequest,
         suppliers,
-        autoRestockedItems,
         createRequisition,
         vpSignRequisition,
         custodianCheckInventory,
         createPurchaseOrder,
         receiveDelivery,
-        autoCreateRequisition,
         updateInventory,
         updateInventoryItem,
         updateSupplier,

@@ -5,20 +5,36 @@ import { useSystem } from '../../context/SystemContext';
 export default function FurnitureDispenseHistory() {
   const { furnitureDispenseHistory } = useSystem();
   const [searchTerm, setSearchTerm] = useState('');
+  const [stockStatusFilter, setStockStatusFilter] = useState('');
 
-  // Filter dispense history by search term
+  // Filter dispense history by search term and stock status
   const filteredHistory = furnitureDispenseHistory.filter(record => {
-    if (!searchTerm) return true;
+    // Search filter
+    let passesSearch = true;
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      passesSearch = (
+        record.itemName?.toLowerCase().includes(searchLower) ||
+        record.soldTo?.toLowerCase().includes(searchLower) ||
+        record.dispensedBy?.toLowerCase().includes(searchLower) ||
+        record.quantity?.toString().includes(searchLower) ||
+        record.unitPrice?.toString().includes(searchLower) ||
+        record.totalPrice?.toString().includes(searchLower)
+      );
+    }
     
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      record.itemName?.toLowerCase().includes(searchLower) ||
-      record.soldTo?.toLowerCase().includes(searchLower) ||
-      record.dispensedBy?.toLowerCase().includes(searchLower) ||
-      record.quantity?.toString().includes(searchLower) ||
-      record.unitPrice?.toString().includes(searchLower) ||
-      record.totalPrice?.toString().includes(searchLower)
-    );
+    // Stock status filter
+    let passesStockStatus = true;
+    if (stockStatusFilter) {
+      const stockLevel = record.remainingStock || 0;
+      passesStockStatus = (
+        stockStatusFilter === 'in_stock' && stockLevel >= 3 ||
+        stockStatusFilter === 'low_stock' && stockLevel > 0 && stockLevel < 3 ||
+        stockStatusFilter === 'out_of_stock' && stockLevel === 0
+      );
+    }
+    
+    return passesSearch && passesStockStatus;
   });
 
   // Format date for display
@@ -33,6 +49,16 @@ export default function FurnitureDispenseHistory() {
     });
   };
 
+  // Generate History ID in format: YYYYMMDD-XXXXXX
+  const generateHistoryId = (dateString) => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    return `${year}${month}${day}-${random}`;
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -43,19 +69,38 @@ export default function FurnitureDispenseHistory() {
           </h2>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            <Search size={16} className="inline mr-2" />
-            Search Dispense History
-          </label>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by item name, customer, user, quantity, or price..."
-            className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
+        {/* Search Bar and Stock Status Filter */}
+        <div className="mb-6 flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Search size={16} className="inline mr-2" />
+              Search Dispense History
+            </label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by item name, customer, user, quantity, or price..."
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          
+          <div className="md:w-64">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Package size={16} className="inline mr-2" />
+              Stock Status
+            </label>
+            <select
+              value={stockStatusFilter}
+              onChange={(e) => setStockStatusFilter(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">-- All Statuses --</option>
+              <option value="in_stock">In Stock</option>
+              <option value="low_stock">Low Stock</option>
+              <option value="out_of_stock">Out of Stock</option>
+            </select>
+          </div>
         </div>
 
         {/* Dispense History Table */}
@@ -64,7 +109,7 @@ export default function FurnitureDispenseHistory() {
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="text-slate-500 bg-slate-100 border-b border-slate-200 text-xs uppercase tracking-wide">
-                  <th className="py-3 px-4 text-center">Date & Time</th>
+                  <th className="py-3 px-4 text-center">History ID</th>
                   <th className="py-3 px-4 text-center">Item Name</th>
                   <th className="py-3 px-4 text-center">Quantity</th>
                   <th className="py-3 px-4 text-center">Unit Price</th>
@@ -72,6 +117,7 @@ export default function FurnitureDispenseHistory() {
                   <th className="py-3 px-4 text-center">Remaining Stock</th>
                   <th className="py-3 px-4 text-center">Sold To</th>
                   <th className="py-3 px-4 text-center">Dispensed By</th>
+                  <th className="py-3 px-4 text-center">Date & Time</th>
                 </tr>
               </thead>
               <tbody>
@@ -80,11 +126,8 @@ export default function FurnitureDispenseHistory() {
                     key={record.id} 
                     className="border-b border-slate-100 hover:bg-slate-50 transition"
                   >
-                    <td className="py-3 px-4 text-slate-700 text-center">
-                      <div className="flex items-center gap-1 justify-center">
-                        <Calendar size={14} className="text-slate-400" />
-                        {formatDate(record.dispensedAt)}
-                      </div>
+                    <td className="py-3 px-4 text-slate-700 text-center font-mono">
+                      {generateHistoryId(record.dispensedAt)}
                     </td>
                     <td className="py-3 px-4 text-slate-700 text-center">
                       {record.itemName}
@@ -114,6 +157,12 @@ export default function FurnitureDispenseHistory() {
                     </td>
                     <td className="py-3 px-4 text-slate-700 text-center">
                       {record.dispensedBy}
+                    </td>
+                    <td className="py-3 px-4 text-slate-700 text-center">
+                      <div className="flex items-center gap-1 justify-center">
+                        <Calendar size={14} className="text-slate-400" />
+                        {formatDate(record.dispensedAt)}
+                      </div>
                     </td>
                   </tr>
                 ))}

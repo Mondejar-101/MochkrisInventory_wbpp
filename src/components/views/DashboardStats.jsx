@@ -3,7 +3,7 @@ import { Package, AlertTriangle, CheckCircle, Clock, ClipboardList, ShoppingCart
 import { useSystem } from "../../context/SystemContext";
 
 export default function DashboardStats({ role, onCreatePO, onCreateRF }) {
-  const { inventory, requisitions, purchaseOrders, autoRestockedItems } = useSystem();
+  const { inventory, requisitions, purchaseOrders } = useSystem();
 
   // Check if data is still loading (initial render or data fetching)
   const [isLoading, setIsLoading] = React.useState(false);
@@ -28,12 +28,15 @@ export default function DashboardStats({ role, onCreatePO, onCreateRF }) {
     );
   }
 
-  const lowStock = inventory.filter(i => i.qty < 3).length;
+  // Filter inventory to only show items with actual stock (same as inventory table)
+  const visibleInventory = inventory.filter(item => item.qty > 0);
+  
+  const totalItems = visibleInventory.length;
+  const lowStock = visibleInventory.filter(i => i.qty < i.restockThreshold).length;
   const pendingRF = requisitions.filter(r => r.status === "PENDING APPROVAL").length;
   const forPurchasing = requisitions.filter(r => r.status === "FORWARDED_TO_PURCHASING").length;
   const ongoingPO = purchaseOrders.filter(p => p.status !== "COMPLETED").length;
   const completedTransactions = requisitions.filter(r => r.status === "COMPLETED").length;
-  const restockedCount = autoRestockedItems.length;
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -42,14 +45,13 @@ export default function DashboardStats({ role, onCreatePO, onCreateRF }) {
         Dashboard Overview
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3">
-        <StatCard title="Total Inventory Items" value={inventory.length} icon={Package} color="bg-blue-600" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <StatCard title="Total Inventory Items" value={totalItems} icon={Package} color="bg-blue-600" />
         <StatCard title="Low Stock Items" value={lowStock} icon={AlertTriangle} color="bg-orange-500" />
         <StatCard title="Req. Pending" value={pendingRF} icon={ClipboardList} color="bg-amber-600" />
         <StatCard title="Forwarded to Purchasing" value={forPurchasing} icon={ShoppingCart} color="bg-indigo-600" />
         <StatCard title="Active Purchase Orders" value={ongoingPO} icon={Truck} color="bg-emerald-600" />
         <StatCard title="Completed Requests" value={completedTransactions} icon={CheckCircle} color="bg-green-600" />
-        <StatCard title="Auto-RF Created" value={restockedCount} icon={Package} color="bg-pink-600" />
       </div>
 
       {/* Inventory table */}
@@ -66,12 +68,12 @@ export default function DashboardStats({ role, onCreatePO, onCreateRF }) {
               </tr>
             </thead>
             <tbody>
-              {[...inventory].sort((a, b) => {
+              {[...inventory]
+                .filter(item => item.qty > 0) // Only show items with actual stock
+                .sort((a, b) => {
                 // Sort by creation date (newest first) - use product_id as fallback since inventory items don't have creation date
                 return b.product_id - a.product_id;
-              }).map((item, idx) => {
-                const wasAuto = autoRestockedItems.find(r => r.product_id === item.product_id);
-                return (
+              }).map((item, idx) => (
                   <tr key={item.product_id} className={`border-b border-slate-100 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50"} hover:bg-slate-100 transition`}>
                     <td className="py-3 px-3 text-slate-700 font-medium text-center">
                       {item.name}
@@ -107,8 +109,7 @@ export default function DashboardStats({ role, onCreatePO, onCreateRF }) {
                       </div>
                     </td>
                   </tr>
-                )
-              })}
+                ))}
             </tbody>
           </table>
         </div>
@@ -127,7 +128,6 @@ const StatCard = ({ title, value, icon: Icon, color }) => {
       'Total Inventory Items': 'Total Items',
       'Low Stock Items': 'Low Stock',
       'Completed Requests': 'Completed',
-      'Auto-RF Created': 'Auto-RF'
     };
     return abbreviations[text] || text;
   };

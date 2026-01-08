@@ -6,6 +6,7 @@ import EditFurnitureStock from './EditFurnitureStock';
 export default function FurnitureStock() {
   const { furnitureStock, updateFurnitureItem, addFurnitureDispense } = useSystem();
   const [selectedType, setSelectedType] = useState('');
+  const [stockStatusFilter, setStockStatusFilter] = useState('');
   const [editingItem, setEditingItem] = useState(null);
   const [dispenseModal, setDispenseModal] = useState({ isOpen: false, item: null, quantity: '', soldTo: '' });
 
@@ -45,15 +46,30 @@ export default function FurnitureStock() {
     return fullType.split(' ')[0]; // Get first word before the parenthesis
   };
 
-  // Filter furniture items by selected type
-  const filteredItems = selectedType 
-    ? furnitureStock.filter(item => {
-        // Check if the item type contains the selected main type
-        const itemMainType = getMainType(item.type);
-        const selectedMainType = getMainType(selectedType);
-        return itemMainType === selectedMainType;
-      })
-    : furnitureStock;
+  // Filter furniture items by selected type and stock status
+  const filteredItems = furnitureStock.filter(item => {
+    // Type filter
+    let passesTypeFilter = true;
+    if (selectedType) {
+      const itemMainType = getMainType(item.type);
+      const selectedMainType = getMainType(selectedType);
+      passesTypeFilter = itemMainType === selectedMainType;
+    }
+    
+    // Stock status filter
+    let passesStockStatusFilter = true;
+    if (stockStatusFilter) {
+      const stockLevel = item.quantity || 0;
+      const restockThreshold = item.restockThreshold || 3;
+      passesStockStatusFilter = (
+        stockStatusFilter === 'in_stock' && stockLevel >= restockThreshold ||
+        stockStatusFilter === 'low_stock' && stockLevel > 0 && stockLevel < restockThreshold ||
+        stockStatusFilter === 'out_of_stock' && stockLevel === 0
+      );
+    }
+    
+    return passesTypeFilter && passesStockStatusFilter;
+  });
 
   // Handle edit action
   const handleEdit = (item) => {
@@ -137,24 +153,43 @@ export default function FurnitureStock() {
           </h2>
         </div>
 
-        {/* Furniture Type Filter */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            <Filter size={16} className="inline mr-2" />
-            Furniture Types
-          </label>
-          <select
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="w-full md:w-96 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            <option value="">-- Select Furniture Type --</option>
-            {furnitureTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+        {/* Furniture Type and Stock Status Filters */}
+        <div className="mb-6 flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Filter size={16} className="inline mr-2" />
+              Furniture Types
+            </label>
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">-- Select Furniture Type --</option>
+              {furnitureTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="md:w-64">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Package size={16} className="inline mr-2" />
+              Stock Status
+            </label>
+            <select
+              value={stockStatusFilter}
+              onChange={(e) => setStockStatusFilter(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">-- All Statuses --</option>
+              <option value="in_stock">In Stock</option>
+              <option value="low_stock">Low Stock</option>
+              <option value="out_of_stock">Out of Stock</option>
+            </select>
+          </div>
         </div>
 
         {/* Furniture Items Table */}

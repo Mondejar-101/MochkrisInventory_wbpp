@@ -9,17 +9,77 @@ import {
 } from "lucide-react";
 
 export default function DeliveryReceiving() {
-  const { purchaseOrders, receiveDelivery } = useSystem();
+  const { purchaseOrders, receiveDelivery, suppliers } = useSystem();
   const [selectedPO, setSelectedPO] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const [historySearchTerm, setHistorySearchTerm] = useState('');
 
   console.log('All purchaseOrders in DeliveryReceiving:', purchaseOrders);
   
+  // Helper function to get supplier details
+  const getSupplierDetails = (supplierName) => {
+    if (!supplierName || !suppliers) return { contact: 'N/A', email: 'N/A' };
+    const supplier = suppliers.find(s => s.name === supplierName);
+    return supplier ? { 
+      contact: supplier.contact || 'N/A', 
+      email: supplier.email || 'N/A' 
+    } : { contact: 'N/A', email: 'N/A' };
+  };
+
+  // Helper function to normalize PO data
+  const normalizePO = (po) => {
+    console.log('=== Normalizing PO ===');
+    console.log('Original PO:', po);
+    
+    // Handle different date field names
+    const createdAt = po.createdAt || po.created || po.updatedAt;
+    console.log('Date fields found:', {
+      createdAt: po.createdAt,
+      created: po.created,
+      updatedAt: po.updatedAt,
+      selected: createdAt
+    });
+    
+    // Handle different item field structures
+    let items = [];
+    if (po.items && Array.isArray(po.items) && po.items.length > 0) {
+      items = po.items.map(item => ({
+        ...item,
+        // Ensure unitPrice is set from price field if missing
+        unitPrice: item.unitPrice || item.price || item.unit_price || 0
+      }));
+      console.log('Using items array with unitPrice mapping:', items);
+    } else if (po.item && po.qty) {
+      // Single item format - include all possible price fields
+      items = [{
+        name: po.item,
+        quantity: po.qty,
+        unitPrice: po.price || po.unitPrice || po.unit_price || 0,
+        unit: po.unit || 'pcs',
+        productId: po.product_id
+      }];
+      console.log('Created single item:', items);
+    } else {
+      console.log('No items found, checking all possible fields:', {
+        items: po.items,
+        item: po.item,
+        qty: po.qty,
+        quantity: po.quantity
+      });
+    }
+    
+    const normalized = { ...po, createdAt, items };
+    console.log('Normalized PO:', normalized);
+    console.log('=== End Normalization ===');
+    
+    return normalized;
+  };
+  
   const incomingDeliveries = purchaseOrders
     .filter((po) => {
       const isMatch = po.status === "SENT TO MANAGER";
       console.log(`PO ${po.id} status: ${po.status} - ${isMatch ? 'MATCH' : 'no match'}`);
+      console.log(`Raw PO data:`, po);
       return isMatch;
     });
 
@@ -78,7 +138,10 @@ export default function DeliveryReceiving() {
   console.log('Filtered incomingDeliveries:', incomingDeliveries);
 
   const openConfirm = (po, damaged) => {
-    setSelectedPO({ ...po, damaged });
+    console.log('openConfirm called with PO:', po);
+    const normalizedPO = normalizePO(po);
+    console.log('Normalized PO:', normalizedPO);
+    setSelectedPO({ ...normalizedPO, damaged });
   };
 
   const closeConfirm = () => setSelectedPO(null);
@@ -227,7 +290,7 @@ export default function DeliveryReceiving() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search by PO ID, Status (Accepted/Rejected), and Date (MM-DD-YYYY)"
+                placeholder="Search by PO ID, Status (Accepted/Rejected), and Date (MM/DD/YYYY)"
                 value={historySearchTerm}
                 onChange={(e) => setHistorySearchTerm(e.target.value)}
                 className="w-full px-4 py-2 pl-10 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -292,6 +355,7 @@ export default function DeliveryReceiving() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="p-6">
+              {console.log('Complete selectedPO object:', selectedPO)}
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-xl font-semibold">
@@ -364,13 +428,19 @@ export default function DeliveryReceiving() {
                     <div>
                       <h5 className="text-sm font-medium text-slate-600">Contact</h5>
                       <p className="text-sm text-slate-500">
-                        {selectedPO.supplier_contact || selectedPO.supplierContact || 'N/A'}
+                        {(() => {
+                          const supplierDetails = getSupplierDetails(selectedPO.supplier);
+                          return supplierDetails.contact;
+                        })()}
                       </p>
                     </div>
                     <div>
                       <h5 className="text-sm font-medium text-slate-600">Email</h5>
                       <p className="text-sm text-slate-500">
-                        {selectedPO.supplier_email || selectedPO.supplierEmail || 'N/A'}
+                        {(() => {
+                          const supplierDetails = getSupplierDetails(selectedPO.supplier);
+                          return supplierDetails.email;
+                        })()}
                       </p>
                     </div>
                   </div>
@@ -378,6 +448,7 @@ export default function DeliveryReceiving() {
 
                 <div className="border-t border-b border-slate-200 py-4">
                   <h4 className="font-medium text-slate-800 mb-3">Order Items</h4>
+                  {console.log('Selected PO items:', selectedPO.items)}
                   {selectedPO.items && selectedPO.items.length > 0 ? (
                     <div className="space-y-4">
                       <div className="grid grid-cols-12 gap-2 text-sm font-medium text-slate-500 pb-2 border-b-2 border-slate-200">
@@ -390,9 +461,9 @@ export default function DeliveryReceiving() {
                       
                       {selectedPO.items.map((item, index) => {
                         const quantity = Number(item.quantity || item.qty) || 1; 
-                        const unitPrice = Number(item.unitPrice || item.price || 0);
+                        const unitPrice = Number(item.price || item.unitPrice || item.unit_price || 0);
                         const total = quantity * unitPrice;
-                        const hasPrice = unitPrice > 0;
+                        const hasValidPrice = unitPrice > 0;
                         
                         return (
                           <div key={index} className="grid grid-cols-12 gap-2 items-center py-2 border-b border-slate-200 last:border-0">
@@ -406,13 +477,13 @@ export default function DeliveryReceiving() {
                               {item.unit || 'pcs'}
                             </div>
                             <div className="col-span-2 text-right text-sm text-slate-600">
-                              {hasPrice ? `₱${unitPrice.toFixed(2)}` : 'N/A'}
+                              {hasValidPrice ? `₱${unitPrice.toFixed(2)}` : 'N/A'}
                             </div>
                             <div className="col-span-2 text-center text-sm text-slate-600">
                               {quantity}
                             </div>
                             <div className="col-span-2 text-right font-medium text-slate-800">
-                              {hasPrice ? `₱${total.toFixed(2)}` : 'N/A'}
+                              {hasValidPrice ? `₱${total.toFixed(2)}` : 'N/A'}
                             </div>
                           </div>
                         );
@@ -424,7 +495,7 @@ export default function DeliveryReceiving() {
                           {(() => {
                             const total = selectedPO.items.reduce((sum, item) => {
                               const quantity = Number(item.quantity || item.qty) || 1;
-                              const unitPrice = Number(item.unitPrice || item.price || 0);
+                              const unitPrice = Number(item.price || item.unitPrice || item.unit_price || 0);
                               return sum + (quantity * unitPrice);
                             }, 0);
                             return total > 0 ? `₱${total.toFixed(2)}` : 'N/A';

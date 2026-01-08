@@ -18,7 +18,6 @@ export default function ManagementView() {
   const [editingSupplier, setEditingSupplier] = useState(null);
   const [newItem, setNewItem] = useState({
     name: '',
-    price: 0,
     unit: 'pcs',
     restockThreshold: 3,
     restockQty: 10
@@ -53,14 +52,12 @@ export default function ManagementView() {
     addNewInventoryItem({
       ...newItem,
       qty: 0,
-      price: parseFloat(newItem.price) || 0,
       restockThreshold: parseInt(newItem.restockThreshold) || 3,
       restockQty: parseInt(newItem.restockQty) || 10
     });
     
     setNewItem({
       name: '',
-      price: 0,
       unit: 'pcs',
       restockThreshold: 3,
       restockQty: 10
@@ -122,8 +119,8 @@ export default function ManagementView() {
             <h4 className="font-medium text-sm text-slate-700 mb-3 flex items-center gap-2">
               <Plus size={16} /> Add New Item
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-              <div className="md:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div>
                 <input
                   type="text"
                   placeholder="Item Name"
@@ -134,23 +131,6 @@ export default function ManagementView() {
                 />
               </div>
               <div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-slate-500 text-sm">₱</span>
-                  </div>
-                  <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    placeholder="Price"
-                    className="w-full border p-2 pl-8 rounded text-sm"
-                    value={newItem.price === 0 ? '' : newItem.price}
-                    onChange={(e) => setNewItem({...newItem, price: e.target.value ? parseFloat(e.target.value) : 0})}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="md:col-span-1">
                 <select
                   className="w-full border p-2 rounded text-sm"
                   value={newItem.unit}
@@ -236,7 +216,6 @@ export default function ManagementView() {
               <thead className="bg-slate-50 text-left text-slate-500">
                 <tr className="border-b">
                   <th className="p-3">Item Name</th>
-                  <th className="p-3">Price</th>
                   <th className="p-3">Unit</th>
                   <th className="p-3">Restock At</th>
                   <th className="p-3">Restock Qty</th>
@@ -254,16 +233,6 @@ export default function ManagementView() {
                             className="w-full border p-1 rounded text-sm pr-20"
                             value={editingItem.name}
                             onChange={(e) => setEditingItem({...editingItem, name: e.target.value})}
-                          />
-                        </td>
-                        <td className="p-3">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            className="w-full border p-1 rounded text-sm pr-20"
-                            value={editingItem.price}
-                            onChange={(e) => setEditingItem({...editingItem, price: parseFloat(e.target.value) || 0})}
                           />
                         </td>
                         <td className="p-3">
@@ -357,7 +326,6 @@ export default function ManagementView() {
                     ) : (
                       <>
                         <td className="p-3">{item.name}</td>
-                        <td className="p-3">₱{item.price?.toFixed(2) || '0.00'}</td>
                         <td className="p-3">{item.unit}</td>
                         <td className="p-3">{item.restockThreshold}</td>
                         <td className="p-3">{item.restockQty}</td>
@@ -401,7 +369,7 @@ export default function ManagementView() {
               <Plus size={16} /> Add New Supplier
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="md:col-span-1">
+              <div>
                 <input
                   type="text"
                   placeholder="Supplier Name"
@@ -411,7 +379,7 @@ export default function ManagementView() {
                   required
                 />
               </div>
-              <div className="md:col-span-1">
+              <div>
                 <input
                   type="text"
                   placeholder="Contact Person"
@@ -420,7 +388,7 @@ export default function ManagementView() {
                   onChange={(e) => setNewSupplier({...newSupplier, contact: e.target.value})}
                 />
               </div>
-              <div className="md:col-span-1">
+              <div>
                 <input
                   type="email"
                   placeholder="Email"
@@ -429,7 +397,7 @@ export default function ManagementView() {
                   onChange={(e) => setNewSupplier({...newSupplier, email: e.target.value})}
                 />
               </div>
-              <div className="md:col-span-1 flex gap-2">
+              <div className="flex gap-2">
                 <button 
                   type="submit" 
                   className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 flex-1 flex items-center justify-center gap-1"

@@ -11,7 +11,9 @@ export default function MaterialStock() {
   console.log('MaterialStock component - inventory:', inventory);
 
   // Filter inventory by search term and stock status
-  const filteredItems = inventory.filter(item => {
+  const filteredItems = inventory
+    .filter(item => item.qty > 0) // Only show items with actual stock
+    .filter(item => {
     // Search filter
     let passesSearch = true;
     if (searchTerm) {

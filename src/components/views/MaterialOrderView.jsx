@@ -182,23 +182,14 @@ function MaterialOrderView() {
       const quantity = parseInt(item.quantity) || 1;
       const unitPrice = parseFloat(item.unitPrice) || 0;
       
-      // Check if this is a temporary item
-      const isTemporary = item.productId.toString().startsWith('temp-');
-      
       return {
         product_id: item.productId,
         name: item.name || product.name || 'Unknown Product',
         quantity: quantity,
         unit_price: unitPrice,
-        unit: isTemporary ? item.unit : (product.unit || 'pcs'),
+        unit: product.unit || 'pcs',
         price: unitPrice,
-        total: (quantity * unitPrice).toFixed(2),
-        // Include temporary item details if applicable
-        ...(isTemporary && {
-          isTemporary: true,
-          restockThreshold: item.restockThreshold || 3,
-          restockQty: item.restockQty || 10
-        })
+        total: (quantity * unitPrice).toFixed(2)
       };
     });
     
@@ -259,19 +250,15 @@ function MaterialOrderView() {
         // Use existing item
         addedItem = existingItem;
       } else {
-        // Create a temporary item object with a temporary ID
-        // This will NOT be added to inventory yet - only when delivery is accepted
-        const tempProductId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        addedItem = {
-          product_id: tempProductId,
+        // Immediately add the new item to inventory
+        addedItem = addNewInventoryItem({
           name: newItem.name,
           price: parseFloat(newItem.price) || 0,
           qty: 0, // Start with 0 quantity
           unit: newItem.unit || 'pcs',
           restockThreshold: newItem.restockThreshold || 3,
-          restockQty: newItem.restockQty || 10,
-          isTemporary: true // Mark as temporary so receiveDelivery knows to add it to inventory
-        };
+          restockQty: newItem.restockQty || 10
+        });
       }
       
       // Update the current item with the product (existing or new)
@@ -280,13 +267,7 @@ function MaterialOrderView() {
         quantity: newItem.qty || 1,
         unitPrice: parseFloat(newItem.price) || 0,
         showNewItemForm: false,
-        name: addedItem.name, // Store the name for display
-        // Store additional info for temporary items
-        ...(addedItem.isTemporary && {
-          unit: addedItem.unit,
-          restockThreshold: addedItem.restockThreshold,
-          restockQty: addedItem.restockQty
-        })
+        name: addedItem.name // Store the name for display
       });
       
       // Add a new empty item for the next entry if this is the last item
@@ -827,7 +808,7 @@ function MaterialOrderView() {
                               {order.items && order.items.length > 0 ? (
                                 order.items.map((item, idx) => (
                                   <div key={idx} className="mt-1">
-                                    {item.qty} × {item.name || `Item ${item.product_id}`}
+                                    {item.quantity} × {item.name || `Item ${item.product_id}`}
                                   </div>
                                 ))
                               ) : (

@@ -5,18 +5,34 @@ import { useSystem } from '../../context/SystemContext';
 export default function MaterialDispenseHistory() {
   const { materialDispenseHistory } = useSystem();
   const [searchTerm, setSearchTerm] = useState('');
+  const [stockStatusFilter, setStockStatusFilter] = useState('');
 
-  // Filter dispense history by search term
+  // Filter dispense history by search term and stock status
   const filteredHistory = materialDispenseHistory.filter(record => {
-    if (!searchTerm) return true;
+    // Search filter
+    let passesSearch = true;
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      passesSearch = (
+        record.itemName?.toLowerCase().includes(searchLower) ||
+        record.reason?.toLowerCase().includes(searchLower) ||
+        record.dispensedBy?.toLowerCase().includes(searchLower) ||
+        record.quantity?.toString().includes(searchLower)
+      );
+    }
     
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      record.itemName?.toLowerCase().includes(searchLower) ||
-      record.reason?.toLowerCase().includes(searchLower) ||
-      record.dispensedBy?.toLowerCase().includes(searchLower) ||
-      record.quantity?.toString().includes(searchLower)
-    );
+    // Stock status filter
+    let passesStockStatus = true;
+    if (stockStatusFilter) {
+      const stockLevel = record.remainingStock || 0;
+      passesStockStatus = (
+        stockStatusFilter === 'in_stock' && stockLevel >= 3 ||
+        stockStatusFilter === 'low_stock' && stockLevel > 0 && stockLevel < 3 ||
+        stockStatusFilter === 'out_of_stock' && stockLevel === 0
+      );
+    }
+    
+    return passesSearch && passesStockStatus;
   });
 
   // Format date for display
@@ -41,19 +57,38 @@ export default function MaterialDispenseHistory() {
           </h2>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            <Search size={16} className="inline mr-2" />
-            Search Dispense History
-          </label>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by item name, reason, user, or quantity..."
-            className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
+        {/* Search Bar and Stock Status Filter */}
+        <div className="mb-6 flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Search size={16} className="inline mr-2" />
+              Search Dispense History
+            </label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by item name, reason, user, or quantity..."
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          
+          <div className="md:w-64">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              <Package size={16} className="inline mr-2" />
+              Stock Status
+            </label>
+            <select
+              value={stockStatusFilter}
+              onChange={(e) => setStockStatusFilter(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">-- All Statuses --</option>
+              <option value="in_stock">In Stock</option>
+              <option value="low_stock">Low Stock</option>
+              <option value="out_of_stock">Out of Stock</option>
+            </select>
+          </div>
         </div>
 
         {/* Dispense History Table */}

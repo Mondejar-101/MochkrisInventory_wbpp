@@ -33,8 +33,8 @@ export const AuthProvider = ({ children }) => {
       },
       {
         id: 2,
-        email: 'gm@mochkris.com',
-        password: 'gm123456',
+        email: 'genmanager@mochkris.com',
+        password: 'genmanager123',
         name: 'General Manager',
         role: 'generalmanager',
         department: 'Management'

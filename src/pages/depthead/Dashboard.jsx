@@ -15,6 +15,8 @@ import MaterialOrderView from '../../components/views/MaterialOrderView';
 import FurnitureStock from '../../components/views/FurnitureStock';
 import AddFurnitureStock from '../../components/views/AddFurnitureStock';
 import MaterialStock from '../../components/views/MaterialStock';
+import MaterialDispenseHistory from '../../components/views/MaterialDispenseHistory';
+import FurnitureDispenseHistory from '../../components/views/FurnitureDispenseHistory';
 
 export default function DeptHeadDashboard() {
   const [currentRole] = useState('DEPARTMENT');
@@ -37,7 +39,7 @@ export default function DeptHeadDashboard() {
 
   // Allowed pages for department head
   const rolePermissions = {
-    DEPARTMENT: ["dashboard", "material_order", "management", "approvals", "furniture_stock", "material_stock"],
+    DEPARTMENT: ["dashboard", "material_order", "management", "approvals", "furniture_stock", "material_stock", "material_dispense", "furniture_dispense"],
   };
 
   // Auto-block unauthorized tab access
@@ -72,6 +74,10 @@ export default function DeptHeadDashboard() {
         console.log('DeptHeadDashboard - furnitureStock:', furnitureStock);
         console.log('DeptHeadDashboard - furnitureStock length:', furnitureStock?.length);
         return <FurnitureStock />;
+      case "material_dispense": 
+        return <MaterialDispenseHistory />;
+      case "furniture_dispense": 
+        return <FurnitureDispenseHistory />;
       case "management": 
         return <ManagementView />;
       default: 
@@ -96,6 +102,8 @@ export default function DeptHeadDashboard() {
             {activeTab === 'approvals' && 'Pending RF Approvals'}
             {activeTab === 'material_stock' && 'Material Stocks'}
             {activeTab === 'furniture_stock' && 'Furniture Stocks'}
+            {activeTab === 'material_dispense' && 'Material Dispense History'}
+            {activeTab === 'furniture_dispense' && 'Furniture Dispense History'}
             {activeTab === 'management' && 'Manage Items & Suppliers'}
           </h1>
         </div>
