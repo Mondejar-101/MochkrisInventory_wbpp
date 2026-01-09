@@ -13,6 +13,7 @@ export default function DeliveryReceiving() {
   const [selectedPO, setSelectedPO] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   console.log('All purchaseOrders in DeliveryReceiving:', purchaseOrders);
   
@@ -115,19 +116,30 @@ export default function DeliveryReceiving() {
   console.log('All purchaseOrders:', purchaseOrders);
   console.log('Delivery history:', deliveryHistory);
 
-  // Filter delivery history based on search term
+  // Filter delivery history based on search term and status filter
   const filteredDeliveryHistory = deliveryHistory.filter(entry => {
-    const searchLower = historySearchTerm.toLowerCase();
-    const matchesId = entry.poId.toLowerCase().includes(searchLower);
-    const matchesStatus = entry.action.toLowerCase().includes(searchLower);
+    // Search filter (excluding status)
+    let passesSearch = true;
+    if (historySearchTerm) {
+      const searchLower = historySearchTerm.toLowerCase();
+      const matchesId = entry.poId.toLowerCase().includes(searchLower);
+      
+      // Date matching - check if search term matches date format or parts of date
+      const entryDate = new Date(entry.timestamp);
+      const dateStr = entryDate.toLocaleString().toLowerCase();
+      const dateStrShort = entryDate.toLocaleDateString().toLowerCase();
+      const matchesDate = dateStr.includes(searchLower) || dateStrShort.includes(searchLower);
+      
+      passesSearch = matchesId || matchesDate;
+    }
     
-    // Date matching - check if search term matches date format or parts of date
-    const entryDate = new Date(entry.timestamp);
-    const dateStr = entryDate.toLocaleString().toLowerCase();
-    const dateStrShort = entryDate.toLocaleDateString().toLowerCase();
-    const matchesDate = dateStr.includes(searchLower) || dateStrShort.includes(searchLower);
+    // Status filter
+    let passesStatusFilter = true;
+    if (statusFilter) {
+      passesStatusFilter = entry.action === statusFilter;
+    }
     
-    return matchesId || matchesStatus || matchesDate;
+    return passesSearch && passesStatusFilter;
   }).sort((a, b) => {
       // Sort by date only - newer dates first
       const dateA = new Date(a.timestamp);
@@ -286,19 +298,35 @@ export default function DeliveryReceiving() {
         
         {showHistory && (
           <div className="space-y-3">
-            {/* Search Bar */}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search by PO ID, Status (Accepted/Rejected), and Date (MM/DD/YYYY)"
-                value={historySearchTerm}
-                onChange={(e) => setHistorySearchTerm(e.target.value)}
-                className="w-full px-4 py-2 pl-10 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+            {/* Search Bar and Status Filter */}
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search by PO ID and Date (MM/DD/YYYY)"
+                    value={historySearchTerm}
+                    onChange={(e) => setHistorySearchTerm(e.target.value)}
+                    className="w-full px-4 py-2 pl-10 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="md:w-48">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">-- All Statuses --</option>
+                  <option value="Accepted">Accepted</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
               </div>
             </div>
             

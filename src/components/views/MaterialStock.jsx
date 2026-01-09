@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Package, Search, PackageOpen, AlertTriangle } from 'lucide-react';
 import { useSystem } from '../../context/SystemContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function MaterialStock() {
   const { inventory, updateInventoryItem, addMaterialDispense } = useSystem();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [stockStatusFilter, setStockStatusFilter] = useState('');
   const [dispenseModal, setDispenseModal] = useState({ isOpen: false, item: null, quantity: '', reason: '' });
@@ -99,7 +101,7 @@ export default function MaterialStock() {
       unit: item.unit || 'pcs',
       reason: reason || 'No reason provided',
       remainingStock: updatedItem.qty,
-      dispensedBy: 'Current User' // You can get this from auth context if needed
+      dispensedBy: user?.role === 'generalmanager' ? 'General Manager' : 'Department Head'
     });
     
     // Close modal and reset

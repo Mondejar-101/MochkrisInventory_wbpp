@@ -1,11 +1,24 @@
 import React, { useState } from 'react';
 import { Clock, Package, Search, Calendar } from 'lucide-react';
 import { useSystem } from '../../context/SystemContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function FurnitureDispenseHistory() {
   const { furnitureDispenseHistory } = useSystem();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [stockStatusFilter, setStockStatusFilter] = useState('');
+
+  // Function to get department name based on who actually dispensed the item
+  const getDepartmentName = (dispensedBy) => {
+    // If dispensed by is already a department name, return it as is
+    if (dispensedBy === 'General Manager' || dispensedBy === 'Department Head') {
+      return dispensedBy;
+    }
+    
+    // Default: show dispensedBy value
+    return dispensedBy;
+  };
 
   // Filter dispense history by search term and stock status
   const filteredHistory = furnitureDispenseHistory.filter(record => {
@@ -19,7 +32,8 @@ export default function FurnitureDispenseHistory() {
         record.dispensedBy?.toLowerCase().includes(searchLower) ||
         record.quantity?.toString().includes(searchLower) ||
         record.unitPrice?.toString().includes(searchLower) ||
-        record.totalPrice?.toString().includes(searchLower)
+        record.totalPrice?.toString().includes(searchLower) ||
+        record.dispensedAt?.toLowerCase().includes(searchLower)
       );
     }
     
@@ -80,7 +94,7 @@ export default function FurnitureDispenseHistory() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by item name, customer, user, quantity, or price..."
+              placeholder="Search by item name, customer, user, quantity, price, date, or time..."
               className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
@@ -156,7 +170,7 @@ export default function FurnitureDispenseHistory() {
                       {record.soldTo}
                     </td>
                     <td className="py-3 px-4 text-slate-700 text-center">
-                      {record.dispensedBy}
+                      {getDepartmentName(record.dispensedBy)}
                     </td>
                     <td className="py-3 px-4 text-slate-700 text-center">
                       <div className="flex items-center gap-1 justify-center">

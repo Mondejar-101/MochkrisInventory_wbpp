@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Package, Filter, Plus, Edit, PackageOpen } from 'lucide-react';
 import { useSystem } from '../../context/SystemContext';
+import { useAuth } from '../../context/AuthContext';
 import EditFurnitureStock from './EditFurnitureStock';
 
 export default function FurnitureStock() {
   const { furnitureStock, updateFurnitureItem, addFurnitureDispense } = useSystem();
+  const { user } = useAuth();
   const [selectedType, setSelectedType] = useState('');
   const [stockStatusFilter, setStockStatusFilter] = useState('');
   const [editingItem, setEditingItem] = useState(null);
@@ -124,7 +126,7 @@ export default function FurnitureStock() {
       totalPrice: totalPrice,
       soldTo: soldTo,
       remainingStock: newQuantity,
-      dispensedBy: 'Current User' // You can get this from auth context if needed
+      dispensedBy: user?.role === 'generalmanager' ? 'General Manager' : 'Department Head'
     });
     
     // Close modal and reset
